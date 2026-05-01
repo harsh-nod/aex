@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 export default defineConfig({
   srcDir: resolve(__dirname, "../../docs"),
+  base: "/aex/",
   title: "AEX",
   description: "Executable contracts for AI agents.",
   lang: "en-US",

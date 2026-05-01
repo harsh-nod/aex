@@ -1,0 +1,7 @@
+{
+  "test_cmd": "npm test -- --watch=false",
+  "target_files": [
+    "src/foo.ts",
+    "tests/foo.test.ts"
+  ]
+}

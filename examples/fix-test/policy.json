@@ -1,0 +1,17 @@
+{
+  "allow": [
+    "file.read:/workspace/**",
+    "file.write:/workspace/tests/**",
+    "tests.run"
+  ],
+  "deny": [
+    "network.*",
+    "secrets.read"
+  ],
+  "require_confirmation": [
+    "file.write"
+  ],
+  "budget": {
+    "calls": 20
+  }
+}

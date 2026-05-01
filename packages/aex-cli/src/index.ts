@@ -53,30 +53,47 @@ program
   .command("run")
   .argument("<file>", "AEX file to execute")
   .option("--policy <policy>", "Path to a runtime policy JSON file")
+  .option("--inputs <inputs>", "Path to an inputs JSON file")
+  .option(
+    "--auto-confirm",
+    "Automatically approve confirmation gates (use with caution)",
+  )
   .description("Execute an AEX contract using the local runtime (experimental)")
   .action(
     async (
       file: string,
       options: {
         policy?: string;
+        inputs?: string;
+        autoConfirm?: boolean;
       },
     ) => {
       try {
+        const inputs = options.inputs
+          ? await loadInputs(resolveInput(options.inputs))
+          : undefined;
         const result = await runTask(resolveInput(file), {
           policy: options.policy
             ? await loadPolicy(resolveInput(options.policy))
             : undefined,
+          inputs,
+          confirm: options.autoConfirm ? autoConfirmHandler : undefined,
           logger: logEvent,
         });
         if (result.status === "blocked") {
           process.stderr.write(
-            `${chalk.yellow("runtime blocked")}: ${result.issues.join(", ")}${
-              EOL_WITH_NEWLINE
-            }`,
+            `${chalk.yellow("runtime blocked")}: ${result.issues.join(
+              ", ",
+            )}${EOL_WITH_NEWLINE}`,
           );
           process.exitCode = 1;
         } else {
           process.stdout.write(`${chalk.green("runtime success")}\n`);
+          if (result.output !== undefined) {
+            process.stdout.write(
+              `${JSON.stringify(result.output, null, 2)}${EOL_WITH_NEWLINE}`,
+            );
+          }
         }
       } catch (error) {
         handleError(error);
@@ -132,6 +149,17 @@ async function loadPolicy(filePath: string): Promise<RuntimePolicy> {
   const raw = await fs.readFile(filePath, "utf8");
   return JSON.parse(raw) as RuntimePolicy;
 }
+
+async function loadInputs(filePath: string): Promise<Record<string, unknown>> {
+  const raw = await fs.readFile(filePath, "utf8");
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Inputs JSON must be an object.");
+  }
+  return parsed as Record<string, unknown>;
+}
+
+const autoConfirmHandler = async () => true;
 
 function logEvent(event: { event: string; data?: Record<string, unknown> }) {
   const payload = event.data ? JSON.stringify(event.data) : "";

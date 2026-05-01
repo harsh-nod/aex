@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vscode/master/extensions/theme-seti/syntaxes/plist.tmLanguage.schema.json",
+  "name": "AEX",
+  "scopeName": "source.aex",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "name": "string.quoted.double.aex",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.aex",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "constant.numeric.aex",
+      "match": "\\b-?[0-9]+(?:\\.[0-9]+)?\\b"
+    },
+    {
+      "name": "variable.parameter.aex",
+      "match": "\\$[A-Za-z0-9_.-]+"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.aex",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.aex",
+          "match": "\\b(agent|goal|use|deny|need|budget|do|make|check|confirm|return)\\b"
+        }
+      ]
+    }
+  },
+  "fileTypes": [
+    "aex"
+  ],
+  "uuid": "c9c6d8a4-4a16-4d3a-8b52-9a6a0e5c3fa1"
+}

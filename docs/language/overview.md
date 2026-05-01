@@ -66,6 +66,26 @@ check patch touches only target_files
 confirm before file.write
 ```
 
+Built-in checks include:
+
+- `result` &mdash; treats the value as truthy/non-empty
+- `value has "Literal"` &mdash; substring inclusion
+- `value has citations` &mdash; ensures Markdown or URLs include citations
+- `value does not include other_value` &mdash; forbids sensitive tokens
+- `patch is valid diff` &mdash; validates unified diff structure
+- `patch touches only target_files` &mdash; ensures the diff stays within an allowed list
+
+## Built-in Tools
+
+The reference runtime ships several safe defaults so you can run contracts locally without wiring custom handlers:
+
+- `file.read` &mdash; read files into memory
+- `file.write` &mdash; apply structured writes or unified diffs with optional confirmation gates
+- `tests.run` &mdash; execute a test command and capture pass/fail output
+- `git.diff` / `git.apply` &mdash; inspect and apply diffs in the current repository
+
+All tools participate in the permission intersection (`use`/`deny` + runtime policy) and respect call budgets and confirmation gates.
+
 ## Return Value
 
 Contracts end with an explicit return payload:

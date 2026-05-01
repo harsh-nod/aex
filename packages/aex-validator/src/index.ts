@@ -11,6 +11,7 @@ export interface ValidationIssue {
   message: string;
   line?: number;
   severity: "error" | "warning";
+  code?: string;
 }
 
 export interface ValidationResult {
@@ -51,6 +52,7 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
       message: diagnostic.message,
       line: diagnostic.line,
       severity: "error",
+      code: "AEX100",
     });
   }
 
@@ -58,6 +60,7 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
     issues.push({
       message: "Task is missing an agent declaration.",
       severity: "error",
+      code: "AEX001",
     });
   }
 
@@ -65,6 +68,7 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
     issues.push({
       message: "Task is missing a goal.",
       severity: "error",
+      code: "AEX002",
     });
   }
 
@@ -72,6 +76,7 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
     issues.push({
       message: "Task is missing a return statement.",
       severity: "error",
+      code: "AEX003",
     });
   }
 
@@ -110,6 +115,7 @@ function checkToolPermissions(
       message: `Tool "${step.tool}" is not declared in use.`,
       line: step.line,
       severity: "error",
+      code: "AEX010",
     });
   }
 
@@ -118,6 +124,7 @@ function checkToolPermissions(
       message: `Tool "${step.tool}" is denied by the contract.`,
       line: step.line,
       severity: "error",
+      code: "AEX011",
     });
   }
 }
@@ -135,6 +142,7 @@ function checkInputs(
         message: `Make step "${step.bind}" references unknown value "${identifier}".`,
         line: step.line,
         severity: "error",
+        code: "AEX020",
       });
     }
   }

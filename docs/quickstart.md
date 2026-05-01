@@ -34,6 +34,7 @@ make patch: diff from failure, sources with:
   - preserve public behavior
   - do not touch unrelated files
 
+check patch is valid diff
 check patch touches only target_files
 confirm before file.write
 
@@ -66,6 +67,18 @@ aex compile tasks/fix-test.aex
 
 The JSON output captures permissions, needs, and step sequence for downstream runtimes. The CLI validates the result against the official IR schema before printing.
 
+## Format the Contract
+
+```bash
+aex fmt tasks/fix-test.aex
+```
+
+Add `--check` to ensure formatting during CI without rewriting files:
+
+```bash
+aex fmt tasks/fix-test.aex --check
+```
+
 ## Run Parser Tests
 
 Verify the parser and validator behave as expected:
@@ -85,3 +98,21 @@ aex run tasks/fix-test.aex \
 The runtime enforces contract permissions and policy budgets. If a step requires confirmation (`confirm before`), provide a confirmation handler when integrating with your agent runtime or pass `--auto-confirm` when testing locally. Otherwise the CLI blocks the run and reports that confirmation is required.
 
 The runtime will log every tool call and check.
+
+## Sign and Verify the Contract
+
+Attach provenance metadata before shipping a contract:
+
+```bash
+aex sign tasks/fix-test.aex --id maintainer --key-file ./signing.key
+```
+
+Verify the metadata later:
+
+```bash
+aex verify tasks/fix-test.aex \
+  --signature tasks/fix-test.aex.signature.json \
+  --key-file ./signing.key
+```
+
+The signature file records the hash, signer, and timestamp, giving security teams an audit trail for every contract revision.

@@ -16,6 +16,7 @@ export default defineConfig({
       { text: "Quickstart", link: "/quickstart" },
       { text: "Language", link: "/language/overview" },
       { text: "Examples", link: "/examples/" },
+      { text: "CLI", link: "/reference/cli" },
       { text: "Integrations", link: "/integrations/" },
       { text: "Policy", link: "/reference/policy" },
       { text: "Security", link: "/reference/security" }
@@ -41,7 +42,8 @@ export default defineConfig({
             { text: "Fix Failing Test", link: "/examples/fix-test" },
             { text: "Review Pull Request", link: "/examples/review-pr" },
             { text: "Support Ticket Reply", link: "/examples/support-ticket" },
-            { text: "Research Brief", link: "/examples/research-brief" }
+            { text: "Research Brief", link: "/examples/research-brief" },
+            { text: "Threat Monitor", link: "/examples/security" }
           ]
         },
         {
@@ -59,7 +61,8 @@ export default defineConfig({
           text: "Reference",
           items: [
             { text: "Policy", link: "/reference/policy" },
-            { text: "Security Model", link: "/reference/security" }
+            { text: "Security Model", link: "/reference/security" },
+            { text: "CLI Reference", link: "/reference/cli" }
           ]
         },
         {

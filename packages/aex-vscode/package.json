@@ -1,0 +1,42 @@
+{
+  "name": "aex-vscode",
+  "displayName": "AEX Contracts",
+  "description": "Syntax highlighting and snippets for AEX task contracts.",
+  "version": "0.0.1",
+  "publisher": "aex",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "aex",
+        "aliases": [
+          "AEX",
+          "AEX Contract"
+        ],
+        "extensions": [
+          ".aex"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "aex",
+        "scopeName": "source.aex",
+        "path": "./syntaxes/aex.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "aex",
+        "path": "./snippets/aex.code-snippets"
+      }
+    ]
+  }
+}

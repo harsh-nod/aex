@@ -23,6 +23,7 @@ make patch: diff from failure, sources with:
   - preserve public behavior
   - do not touch unrelated files
 
+check patch is valid diff
 check patch touches only target_files
 confirm before file.write
 
@@ -63,8 +64,10 @@ npm test
 ```bash
 aex init
 aex check tasks/fix-test.aex
+aex fmt tasks/fix-test.aex
 aex compile tasks/fix-test.aex
 aex run tasks/fix-test.aex --inputs inputs.json --policy policy.json
+aex sign tasks/fix-test.aex --id release-bot --key-file signing.key
 ```
 
 When you run a contract, the runtime enforces the intersection of contract permissions and runtime policy:
@@ -75,6 +78,8 @@ When you run a contract, the runtime enforces the intersection of contract permi
 
 `aex run` accepts `--inputs` and `--policy` flags for JSON files and will prompt for confirmation gates unless you pass `--auto-confirm` during local experiments.
 
+`aex fmt` keeps contracts deterministic (use `--check` in CI), and `aex sign`/`aex verify` attach HMAC-backed provenance metadata for governance workflows.
+
 ## Works with
 
 - MCP
@@ -82,6 +87,7 @@ When you run a contract, the runtime enforces the intersection of contract permi
 - LangGraph
 - GitHub Actions
 - AGENTS.md
+- VS Code (syntax highlighting + snippets)
 
 ## Status
 

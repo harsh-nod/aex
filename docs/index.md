@@ -3,12 +3,13 @@ title: AEX Overview
 ---
 
 <div class="hero-intro">
-  <h1>Executable Contracts for AI Agents</h1>
+  <h1>Field Notes for Agentic Systems</h1>
   <p class="hero-tagline">
-    AEX turns brittle prompts into enforceable task contracts. Define allowed tools, checks, confirmations, and budgets in one readable file.
+    AEX captures an agent’s permissions, tests, confirmations, and provenance in one contract. Format it, sign it, run it, and compile it into LangGraph without rewriting your stack.
   </p>
   <div class="hero-actions">
     <a class="action primary" href="/quickstart">Get Started</a>
+    <a class="action" href="/quickstart#format-the-contract">Format a Contract</a>
     <a class="action" href="https://github.com/harsh-nod/aex">View on GitHub</a>
   </div>
 </div>
@@ -18,19 +19,23 @@ title: AEX Overview
 <div class="landing-grid">
   <article class="card">
     <h3>Readable & Diffable</h3>
-    <p>Contracts live next to your code. Review changes like any other pull request.</p>
+    <p>AEX treats contracts like code: diff them, review them, and reformat them deterministically with <code>aex fmt</code>.</p>
   </article>
   <article class="card">
     <h3>Runtime Enforcement</h3>
-    <p>Tool calls must match <code>use</code> clauses, checks must pass, and confirmation gates require approval before side effects.</p>
+    <p>Built-in checks validate diffs, file scopes, and test runs before side-effectful tools can proceed.</p>
   </article>
   <article class="card">
-    <h3>Framework-Agnostic</h3>
-    <p>Use the shared runtime directly or guard existing stacks via the OpenAI Agents and MCP adapters.</p>
+    <h3>LangGraph Ready</h3>
+    <p>Compile any contract into a LangGraph plan via <code>@aex/langgraph</code> and drop it into existing agent graphs.</p>
   </article>
   <article class="card">
-    <h3>Audit Friendly</h3>
-    <p>Every tool call, check, confirmation, and return value is logged for compliance and review.</p>
+    <h3>CLI Ergonomics</h3>
+    <p>Error codes, formatter support, provenance signing, and human-friendly diagnostics keep contracts tidy.</p>
+  </article>
+  <article class="card">
+    <h3>Provable Provenance</h3>
+    <p><code>aex sign</code> and <code>aex verify</code> attach HMAC-backed metadata so production runs can trust the source.</p>
   </article>
 </div>
 
@@ -66,6 +71,7 @@ make patch: diff from failure, sources with:
   - preserve public behavior
   - do not touch unrelated files
 
+check patch is valid diff
 check patch has "Fix"
 check patch touches only target_files
 confirm before file.write
@@ -115,19 +121,33 @@ if (!(await gateway.allows("email.send"))) {
 }
 ```
   </div>
+  <div>
+    <h3><code>@aex/langgraph</code></h3>
+    <p>Compile contracts straight into LangGraph plans for agent orchestration.</p>
+
+```ts
+import { compileFileToLangGraph } from "@aex/langgraph";
+
+const plan = await compileFileToLangGraph("tasks/fix-test.aex");
+langGraph.load(plan);
+```
+  </div>
 </div>
 
-## Roadmap Snapshot
+## What's New
 
-- Runtime parity with more agent frameworks (LangGraph compiler, GitHub Actions guardrails).
-- First-class formatter (`aex fmt`) and VS Code extension.
-- Signed task contracts and cross-runtime compatibility suite.
+- Built-in diff-aware checks, structured `file.write`, and git helpers in the local runtime.
+- `@aex/langgraph` compiler so contracts can power LangGraph workflows immediately.
+- `aex fmt`, richer CLI diagnostics, and a companion VS Code extension.
+- `aex sign` / `aex verify` provenance metadata plus a security-focused threat-monitor example.
 
-Track progress in the [Roadmap](community/roadmap).
+Track ongoing work in the [Roadmap](community/roadmap).
 
 ## Learn More
 
 - [Quickstart](/quickstart) for a five-minute run-through.
 - [Language Overview](/language/overview) for every keyword.
 - [Examples](/examples/README) for real-world task contracts.
+- [Threat Monitor](/examples/security) for a threat-modelled workflow.
 - [Policy Reference](/reference/policy) &amp; [Security Model](/reference/security) for governance teams.
+- [VS Code Extension](https://github.com/harsh-nod/aex/tree/main/packages/aex-vscode) for syntax highlighting and snippets.

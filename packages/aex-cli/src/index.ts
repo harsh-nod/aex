@@ -11,6 +11,12 @@ import process from "node:process";
 import { createInterface } from "node:readline/promises";
 import irSchema from "../../../schemas/aex-ir.schema.json" with { type: "json" };
 import policySchema from "../../../schemas/policy.schema.json" with { type: "json" };
+import { formatFile } from "./formatter.js";
+import {
+  createSignature,
+  verifySignature,
+  SignatureMetadata,
+} from "./signing.js";
 
 type AjvError = import("ajv").ErrorObject;
 
@@ -104,12 +110,159 @@ program
 
 program
   .command("fmt")
-  .description("Format AEX contracts (formatter is in development)")
-  .action(() => {
-    process.stdout.write(
-      `${chalk.yellow("info")} Formatter support is coming soon. Use ${chalk.cyan("aex check")} to validate contracts today.${EOL_WITH_NEWLINE}`,
-    );
+  .argument("<files...>", "AEX files to format")
+  .option("--check", "Check whether files are already formatted without writing")
+  .description("Format AEX contracts")
+  .action(async (files: string[], options: { check?: boolean }) => {
+    let failed = false;
+    let changed = false;
+
+    for (const file of files) {
+      const resolved = resolveInput(file);
+      let result;
+      try {
+        result = await formatFile(resolved);
+      } catch (error) {
+        handleError(error);
+        failed = true;
+        continue;
+      }
+
+      const { errors, warnings } = partitionIssues(result.issues);
+      for (const warning of warnings) {
+        process.stderr.write(
+          `${chalk.yellow("warn")} ${formatIssue(warning)}${EOL_WITH_NEWLINE}`,
+        );
+      }
+      if (errors.length > 0) {
+        for (const issue of errors) {
+          process.stderr.write(
+            `${chalk.red("error")} ${formatIssue(issue)}${EOL_WITH_NEWLINE}`,
+          );
+        }
+        failed = true;
+        continue;
+      }
+
+      if (options.check) {
+        if (result.formatted !== result.original) {
+          process.stderr.write(
+            `${chalk.red("diff")} ${resolved} is not formatted${EOL_WITH_NEWLINE}`,
+          );
+          failed = true;
+        }
+        continue;
+      }
+
+      if (result.formatted !== result.original) {
+        await fs.writeFile(resolved, result.formatted, "utf8");
+        process.stdout.write(
+          `${chalk.green("formatted")} ${resolved}${EOL_WITH_NEWLINE}`,
+        );
+        changed = true;
+      }
+    }
+
+    if (options.check && !failed) {
+      process.stdout.write(`${chalk.green("✔")} All files are formatted\n`);
+    }
+
+    if (failed) {
+      process.exitCode = 1;
+    } else if (changed && !options.check) {
+      process.stdout.write(`${chalk.green("✔")} Formatting applied\n`);
+    }
   });
+
+program
+  .command("sign")
+  .argument("<file>", "AEX file to sign")
+  .requiredOption("--id <signer>", "Signer identifier")
+  .option("--key <secret>", "Signing secret (use cautiously)")
+  .option("--key-file <path>", "Path to signing secret file")
+  .option(
+    "--output <file>",
+    "Destination for signature metadata (defaults to <file>.signature.json)",
+  )
+  .description("Create provenance metadata for an AEX contract")
+  .action(
+    async (
+      file: string,
+      options: { id: string; key?: string; keyFile?: string; output?: string },
+    ) => {
+      try {
+        const secret = await resolveKey(options);
+        if (!secret) {
+          throw new Error("Provide --key or --key-file for signing.");
+        }
+        const resolved = resolveInput(file);
+        const metadata = await createSignature(resolved, options.id, secret);
+        const outputPath = resolveInput(
+          options.output ?? `${resolved}.signature.json`,
+        );
+        await fs.writeFile(
+          outputPath,
+          `${JSON.stringify(metadata, null, 2)}${EOL_WITH_NEWLINE}`,
+          "utf8",
+        );
+        process.stdout.write(
+          `${chalk.green("signed")} ${resolved} -> ${outputPath}${EOL_WITH_NEWLINE}`,
+        );
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
+
+program
+  .command("verify")
+  .argument("<file>", "AEX file to verify")
+  .requiredOption("--signature <file>", "Signature metadata JSON file")
+  .option("--id <signer>", "Expected signer identifier")
+  .option("--key <secret>", "Verification secret")
+  .option("--key-file <path>", "Path to verification secret file")
+  .description("Verify a signed AEX contract against provenance metadata")
+  .action(
+    async (
+      file: string,
+      options: {
+        signature: string;
+        id?: string;
+        key?: string;
+        keyFile?: string;
+      },
+    ) => {
+      try {
+        const secret = await resolveKey(options);
+        if (!secret) {
+          throw new Error("Provide --key or --key-file for verification.");
+        }
+        const resolved = resolveInput(file);
+        const signaturePath = resolveInput(options.signature);
+        const payload = JSON.parse(
+          await fs.readFile(signaturePath, "utf8"),
+        ) as SignatureMetadata;
+        if (options.id && payload.signer !== options.id) {
+          throw new Error(
+            `Signature signer mismatch: expected ${options.id}, found ${payload.signer}`,
+          );
+        }
+        const valid = await verifySignature(resolved, payload, secret);
+        if (valid) {
+          process.stdout.write(
+            `${chalk.green("✔")} Signature verified for ${resolved}${EOL_WITH_NEWLINE}`,
+          );
+        } else {
+          process.stderr.write(
+            `${chalk.red("invalid")} Signature verification failed${EOL_WITH_NEWLINE}`,
+          );
+          process.exitCode = 1;
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
 
 program
   .command("run")
@@ -187,13 +340,21 @@ function printDiagnostics(diagnostics: ParseError[]) {
   }
 }
 
+function partitionIssues(issues: ValidationIssue[]): {
+  errors: ValidationIssue[];
+  warnings: ValidationIssue[];
+} {
+  const errors = issues.filter((issue) => issue.severity === "error");
+  const warnings = issues.filter((issue) => issue.severity === "warning");
+  return { errors, warnings };
+}
+
 function reportIssues(issues: ValidationIssue[]) {
   if (issues.length === 0) {
     process.stdout.write(`${chalk.green("✔")} Contract is valid\n`);
     return;
   }
-  const errors = issues.filter((issue) => issue.severity === "error");
-  const warnings = issues.filter((issue) => issue.severity === "warning");
+  const { errors, warnings } = partitionIssues(issues);
   for (const issue of errors) {
     process.stderr.write(
       `${chalk.red("error")} ${formatIssue(issue)}${EOL_WITH_NEWLINE}`,
@@ -208,7 +369,11 @@ function reportIssues(issues: ValidationIssue[]) {
 }
 
 function formatIssue(issue: ValidationIssue): string {
-  return issue.line ? `(line ${issue.line}) ${issue.message}` : issue.message;
+  const parts = [];
+  if (issue.code) parts.push(issue.code);
+  if (issue.line) parts.push(`line ${issue.line}`);
+  parts.push(issue.message);
+  return parts.join(" · ");
 }
 
 async function loadPolicy(filePath: string): Promise<RuntimePolicy> {
@@ -231,6 +396,20 @@ async function loadInputs(filePath: string): Promise<Record<string, unknown>> {
     throw new Error("Inputs JSON must be an object.");
   }
   return parsed as Record<string, unknown>;
+}
+
+async function resolveKey(options: {
+  key?: string;
+  keyFile?: string;
+}): Promise<string | undefined> {
+  if (options.key && options.keyFile) {
+    throw new Error("Provide either --key or --key-file, not both.");
+  }
+  if (options.keyFile) {
+    const resolved = resolveInput(options.keyFile);
+    return (await fs.readFile(resolved, "utf8")).trim();
+  }
+  return options.key;
 }
 
 const alwaysApproveConfirmation: ConfirmationHandler = async () => true;

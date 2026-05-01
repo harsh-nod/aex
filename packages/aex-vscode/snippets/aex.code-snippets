@@ -1,0 +1,20 @@
+{
+  "AEX Contract": {
+    "prefix": "aex-contract",
+    "body": [
+      "agent ${1:task_id} v${2:0}",
+      "",
+      "goal \"${3:Describe the goal}\"",
+      "",
+      "use ${4:file.read}",
+      "",
+      "need ${5:input}: ${6:str}",
+      "",
+      "do ${7:tool}(arg=${5:input}) -> ${8:result}",
+      "check ${8:result}",
+      "",
+      "return ${8:result}"
+    ],
+    "description": "Scaffold a minimal AEX contract"
+  }
+}

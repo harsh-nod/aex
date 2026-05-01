@@ -1,8 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import process from "node:process";
+import { promisify } from "node:util";
+import { exec as childExec } from "node:child_process";
 import { runTask, ToolRegistry } from "@aex/runtime";
+import { parseFile } from "@aex/parser";
+import { taskToLangGraph } from "../../aex-langgraph/src/index.js";
+
+const exec = promisify(childExec);
 
 const TOOLS: ToolRegistry = {
   "tests.success": {
@@ -40,6 +47,16 @@ async function writeTempTask(contents: string): Promise<string> {
 }
 
 describe("runtime", () => {
+  const originalCwd = process.cwd();
+
+  beforeEach(() => {
+    process.chdir(originalCwd);
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+  });
+
   it("executes allowed tools and returns structured output", async () => {
     const taskPath = await writeTempTask(`agent runtime_success v0
 
@@ -220,5 +237,209 @@ return brief
       tools: TOOLS,
     });
     expect(blocked.status).toBe("blocked");
+  });
+
+  it("validates patch diff constraints", async () => {
+    const diff = `diff --git a/README.md b/README.md
+--- a/README.md
++++ b/README.md
+@@ -1,3 +1,4 @@
+ # Title
+ Line
++New line
+`;
+    const taskPath = await writeTempTask(`agent runtime_patch v0
+
+goal "Ensure patch is constrained"
+
+use context.load
+
+need patch: str
+need target_files: list[str]
+
+do context.load(key="patch") -> patch
+
+check patch is valid diff
+check patch touches only target_files
+
+return patch
+`);
+
+    const success = await runTask(taskPath, {
+      inputs: {
+        patch: diff,
+        target_files: ["README.md"],
+      },
+      tools: TOOLS,
+    });
+    expect(success.status).toBe("success");
+
+    const blocked = await runTask(taskPath, {
+      inputs: {
+        patch: diff,
+        target_files: ["docs/index.md"],
+      },
+      tools: TOOLS,
+    });
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.issues[0]).toContain("outside the allowed set");
+  });
+
+  it("writes files with structured file.write payloads", async () => {
+    const taskPath = await writeTempTask(`agent runtime_write v0
+
+goal "Write a file"
+
+use file.write
+
+need file_path: str
+need contents: str
+
+do file.write(path=file_path, contents=contents) -> result
+
+check result.written
+
+return result
+`);
+    const dir = path.dirname(taskPath);
+    const relative = "output.txt";
+    const run = await runTask(taskPath, {
+      inputs: {
+        file_path: relative,
+        contents: "hello world",
+      },
+    });
+    expect(run.status).toBe("success");
+    const outputPath = path.resolve(relative);
+    const written = await fs.readFile(outputPath, "utf8");
+    expect(written).toBe("hello world");
+    await fs.rm(outputPath, { force: true });
+  });
+
+  it("reports test run failures without aborting execution", async () => {
+    const taskPath = await writeTempTask(`agent runtime_tests v0
+
+goal "Run tests"
+
+use tests.run
+
+need test_cmd: str
+
+do tests.run(cmd=test_cmd) -> result
+
+check result.passed
+
+return result
+`);
+
+    const success = await runTask(taskPath, {
+      inputs: {
+        test_cmd: 'node -e "process.exit(0)"',
+      },
+    });
+    expect(success.status).toBe("success");
+
+    const failure = await runTask(taskPath, {
+      inputs: {
+        test_cmd: 'node -e "process.exit(1)"',
+      },
+    });
+    expect(failure.status).toBe("blocked");
+    expect(failure.issues[0]).toContain("Check");
+  });
+
+  it("interacts with git tool helpers", async () => {
+    const repoDir = await fs.mkdtemp(path.join(tmpdir(), "aex-git-"));
+    process.chdir(repoDir);
+    await exec("git init", { cwd: repoDir });
+    await exec('git config user.email "ci@example.com"', { cwd: repoDir });
+    await exec('git config user.name "CI Bot"', { cwd: repoDir });
+    const filePath = path.join(repoDir, "sample.txt");
+    await fs.writeFile(filePath, "original\n", "utf8");
+    await exec("git add sample.txt", { cwd: repoDir });
+    await exec('git commit -m "init"', { cwd: repoDir });
+
+    await fs.writeFile(filePath, "original\nnext line\n", "utf8");
+
+    const diffTask = path.join(repoDir, "diff.aex");
+    await fs.writeFile(
+      diffTask,
+      `agent runtime_git_diff v0
+
+goal "Read repo diff"
+
+use git.diff
+
+need repo_file: str
+
+do git.diff(paths=[repo_file]) -> diff
+
+check diff is valid diff
+
+return diff
+`,
+      "utf8",
+    );
+
+    const diffResult = await runTask(diffTask, {
+      inputs: { repo_file: "sample.txt" },
+    });
+    expect(diffResult.status).toBe("success");
+    expect(String(diffResult.output)).toContain("sample.txt");
+
+    const patch = String(diffResult.output);
+    await exec("git checkout -- sample.txt", { cwd: repoDir });
+
+    const applyTask = path.join(repoDir, "apply.aex");
+    await fs.writeFile(
+      applyTask,
+      `agent runtime_git_apply v0
+
+goal "Apply diff"
+
+use git.apply
+
+need patch: str
+need target_files: list[str]
+
+check patch touches only target_files
+
+do git.apply(diff=patch)
+
+return { status: "applied" }
+`,
+      "utf8",
+    );
+
+    const applyResult = await runTask(applyTask, {
+      inputs: {
+        patch,
+        target_files: ["sample.txt"],
+      },
+    });
+    expect(applyResult.status).toBe("success");
+    const updated = await fs.readFile(filePath, "utf8");
+    expect(updated).toContain("next line");
+  });
+
+  it("aligns step graph with LangGraph plan", async () => {
+    const taskPath = await writeTempTask(`agent compat_demo v0
+
+goal "Cross-runtime consistency"
+
+use tests.success
+
+need value: bool
+
+do tests.success(input=value) -> outcome
+check outcome.success
+
+return outcome
+`);
+
+    const parsed = await parseFile(taskPath, { tolerant: true });
+    const plan = taskToLangGraph(parsed.task);
+    expect(Object.keys(plan.nodes)).toHaveLength(parsed.task.steps.length);
+    expect(plan.start).toBeDefined();
   });
 });

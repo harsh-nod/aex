@@ -16,6 +16,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { exec as childExec } from "node:child_process";
+import { tmpdir } from "node:os";
 
 const exec = promisify(childExec);
 
@@ -486,19 +487,49 @@ function evaluateCheck(condition: string, state: ExecutionState): {
       : { ok: true };
   }
 
-  switch (trimmed) {
-    case "patch touches only target_files":
+  const touchesOnlyMatch =
+    /^([A-Za-z0-9_.-]+)\s+touches only\s+([A-Za-z0-9_.-]+)$/.exec(trimmed);
+  if (touchesOnlyMatch) {
+    const patchValue = resolvePath(touchesOnlyMatch[1], state);
+    const allowedList = resolvePath(touchesOnlyMatch[2], state);
+    if (!Array.isArray(allowedList)) {
       return {
         ok: false,
-        message:
-          "Check \"patch touches only target_files\" is not implemented in the local runtime.",
+        message: `"${touchesOnlyMatch[2]}" must be an array of file paths.`,
       };
-    default:
-      return {
-        ok: false,
-        message: `Check "${condition}" is not supported by the runtime.`,
-      };
+    }
+    const touched = extractTouchedFiles(patchValue);
+    const allowed = new Set(
+      (allowedList as unknown[]).map((entry) => String(entry)),
+    );
+    const disallowed = touched.filter((file) => !allowed.has(file));
+    return disallowed.length === 0
+      ? { ok: true }
+      : {
+          ok: false,
+          message: `Patch touches files outside the allowed set: ${disallowed.join(
+            ", ",
+          )}`,
+        };
   }
+
+  const validDiffMatch =
+    /^([A-Za-z0-9_.-]+)\s+is valid diff$/.exec(trimmed) ??
+    /^([A-Za-z0-9_.-]+)\s+has valid diff$/.exec(trimmed);
+  if (validDiffMatch) {
+    const diffValue = resolvePath(validDiffMatch[1], state);
+    return isValidDiff(diffValue)
+      ? { ok: true }
+      : {
+          ok: false,
+          message: `"${validDiffMatch[1]}" does not look like a valid unified diff.`,
+        };
+  }
+
+  return {
+    ok: false,
+    message: `Check "${condition}" is not supported by the runtime.`,
+  };
 }
 
 function evaluateReturn(
@@ -584,27 +615,123 @@ const builtinTools: ToolRegistry = {
   "file.write": {
     sideEffect: "write",
     handler: async (args) => {
-      return {
-        accepted: false,
-        message:
-          "file.write is not available in the local runtime. Provide a custom tool handler.",
-        diff: args.diff ?? null,
-      };
+      const writes = normalizeWritePayload(args);
+      if (writes.length > 0) {
+        const written: string[] = [];
+        for (const entry of writes) {
+          const absolute = path.resolve(process.cwd(), entry.path);
+          await fs.mkdir(path.dirname(absolute), { recursive: true });
+          await fs.writeFile(
+            absolute,
+            entry.contents,
+            entry.encoding ?? "utf8",
+          );
+          written.push(entry.path);
+        }
+        return { written };
+      }
+
+      if (typeof args.diff === "string") {
+        const diffText = String(args.diff);
+        if (!isValidDiff(diffText)) {
+          return {
+            applied: false,
+            message: "Provided diff payload is not valid unified diff text.",
+          };
+        }
+        const result = await applyDiff(diffText);
+        return result.applied
+          ? { applied: true }
+          : {
+              applied: false,
+              message: result.message ?? "Failed to apply diff.",
+            };
+      }
+
+      throw new Error(
+        "file.write expects either a `writes` array or a unified `diff` string.",
+      );
     },
   },
   "tests.run": {
     sideEffect: "read",
     handler: async (args) => {
       const command = typeof args.cmd === "string" ? args.cmd : "npm test";
-      const { stdout, stderr } = await exec(command, { cwd: process.cwd() });
-      return {
-        passed: true,
-        stdout,
-        stderr,
-      };
+      try {
+        const { stdout, stderr } = await exec(command, {
+          cwd: process.cwd(),
+        });
+        return {
+          passed: true,
+          stdout,
+          stderr,
+          exitCode: 0,
+        };
+      } catch (error) {
+        const err = error as { stdout?: string; stderr?: string; code?: number };
+        return {
+          passed: false,
+          stdout: err.stdout ?? "",
+          stderr: err.stderr ?? formatError(error),
+          exitCode:
+            typeof err.code === "number"
+              ? err.code
+              : typeof (error as Record<string, unknown>).code === "number"
+                ? ((error as Record<string, unknown>).code as number)
+                : 1,
+        };
+      }
+    },
+  },
+  "git.status": {
+    sideEffect: "read",
+    handler: async () => {
+      const { stdout } = await exec("git status --short", {
+        cwd: process.cwd(),
+      });
+      return stdout.trim().split("\n").filter(Boolean);
+    },
+  },
+  "git.diff": {
+    sideEffect: "read",
+    handler: async (args) => {
+      const pathsArg = args.paths;
+      const extra =
+        Array.isArray(pathsArg) && pathsArg.length > 0
+          ? ` -- ${pathsArg.map((p) => `"${p}"`).join(" ")}`
+          : "";
+      const { stdout } = await exec(`git diff${extra}`, {
+        cwd: process.cwd(),
+        maxBuffer: 10 * 1024 * 1024,
+      });
+      return stdout;
+    },
+  },
+  "git.apply": {
+    sideEffect: "write",
+    handler: async (args) => {
+      const diff = typeof args.diff === "string" ? args.diff : undefined;
+      if (!diff) {
+        throw new Error("git.apply requires a unified diff string in `diff`.");
+      }
+      if (!isValidDiff(diff)) {
+        return {
+          applied: false,
+          message: "Provided diff payload is not valid unified diff text.",
+        };
+      }
+      const result = await applyDiff(diff);
+      return result.applied
+        ? { applied: true }
+        : {
+            applied: false,
+            message: result.message ?? "Failed to apply diff with git.apply.",
+          };
     },
   },
 };
+
+type WriteEntry = { path: string; contents: string; encoding?: BufferEncoding };
 
 function normalizePolicy(policy?: RuntimePolicy): NormalizedPolicy {
   return {
@@ -687,8 +814,180 @@ function asText(value: unknown): string {
   return String(value);
 }
 
+function normalizeWritePayload(args: Record<string, unknown>): WriteEntry[] {
+  const entries: WriteEntry[] = [];
+  const writes = args.writes;
+
+  if (Array.isArray(writes)) {
+    for (const entry of writes) {
+      if (entry && typeof entry === "object") {
+        const record = entry as Record<string, unknown>;
+        if (typeof record.path === "string" && typeof record.contents === "string") {
+          entries.push({
+            path: record.path,
+            contents: record.contents,
+            encoding:
+              typeof record.encoding === "string" ? record.encoding : undefined,
+          });
+        }
+      } else if (typeof entry === "string") {
+        const value = args.contents;
+        if (typeof value === "string") {
+          entries.push({ path: entry, contents: value });
+        }
+      }
+    }
+  } else if (writes && typeof writes === "object") {
+    const record = writes as Record<string, unknown>;
+    for (const [filePath, payload] of Object.entries(record)) {
+      if (typeof payload === "string") {
+        entries.push({ path: filePath, contents: payload });
+      } else if (payload && typeof payload === "object") {
+        const inner = payload as Record<string, unknown>;
+        if (typeof inner.contents === "string") {
+          entries.push({
+            path: filePath,
+            contents: inner.contents,
+            encoding:
+              typeof inner.encoding === "string" ? inner.encoding : undefined,
+          });
+        }
+      }
+    }
+  }
+
+  if (
+    entries.length === 0 &&
+    typeof args.path === "string" &&
+    typeof args.contents === "string"
+  ) {
+    entries.push({
+      path: args.path,
+      contents: args.contents,
+      encoding: typeof args.encoding === "string" ? args.encoding : undefined,
+    });
+  }
+
+  return entries;
+}
+
+async function applyDiff(
+  diffText: string,
+): Promise<{ applied: boolean; message?: string }> {
+  const tempDir = await fs.mkdtemp(path.join(tmpdir(), "aex-diff-"));
+  const diffPath = path.join(tempDir, "patch.diff");
+  try {
+    await fs.writeFile(diffPath, diffText, "utf8");
+    await exec(`git apply --whitespace=nowarn "${diffPath}"`, {
+      cwd: process.cwd(),
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    return { applied: true };
+  } catch (error) {
+    return { applied: false, message: formatError(error) };
+  } finally {
+    await fs.rm(diffPath, { force: true }).catch(() => undefined);
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
+function extractTouchedFiles(patch: unknown): string[] {
+  const files = new Set<string>();
+
+  if (typeof patch === "string") {
+    const lines = patch.split("\n");
+    for (const line of lines) {
+      const diffMatch = /^diff --git a\/(.+?) b\/(.+)$/.exec(line.trim());
+      if (diffMatch) {
+        files.add(normalizePath(diffMatch[2]));
+        continue;
+      }
+      const newFileMatch = /^\+\+\+\s+b\/(.+)$/.exec(line.trim());
+      if (newFileMatch) {
+        files.add(normalizePath(newFileMatch[1]));
+      }
+    }
+    return [...files];
+  }
+
+  if (Array.isArray(patch)) {
+    for (const entry of patch) {
+      if (typeof entry === "string") {
+        files.add(normalizePath(entry));
+      } else if (entry && typeof entry === "object") {
+        const candidate =
+          (entry as Record<string, unknown>).path ??
+          (entry as Record<string, unknown>).file ??
+          (entry as Record<string, unknown>).newPath;
+        if (typeof candidate === "string") {
+          files.add(normalizePath(candidate));
+        }
+      }
+    }
+    return [...files];
+  }
+
+  if (patch && typeof patch === "object") {
+    const record = patch as Record<string, unknown>;
+    if (Array.isArray(record.files)) {
+      return extractTouchedFiles(record.files);
+    }
+    if (typeof record.path === "string") {
+      files.add(normalizePath(record.path));
+      return [...files];
+    }
+  }
+
+  return [];
+}
+
+function isValidDiff(value: unknown): boolean {
+  if (value === undefined || value === null) {
+    return false;
+  }
+  if (typeof value === "string") {
+    if (!/(^|\n)(diff --git|---\s|@@ )/.test(value)) {
+      return false;
+    }
+    return extractTouchedFiles(value).length > 0;
+  }
+  if (Array.isArray(value)) {
+    return value.every((entry) => {
+      if (typeof entry === "string") return entry.trim().length > 0;
+      if (entry && typeof entry === "object") {
+        const candidate =
+          (entry as Record<string, unknown>).path ??
+          (entry as Record<string, unknown>).newPath;
+        return typeof candidate === "string" && candidate.trim().length > 0;
+      }
+      return false;
+    });
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if (Array.isArray(record.files)) {
+      return isValidDiff(record.files);
+    }
+    if (typeof record.diff === "string") {
+      return isValidDiff(record.diff);
+    }
+    if (typeof record.path === "string") {
+      return true;
+    }
+  }
+  return false;
+}
+
+function normalizePath(filePath: string): string {
+  return filePath.replace(/^(\.\/)+/, "");
+}
+
 function formatIssue(issue: ValidationIssue): string {
-  return issue.line ? `line ${issue.line}: ${issue.message}` : issue.message;
+  const segments = [];
+  if (issue.code) segments.push(issue.code);
+  if (issue.line) segments.push(`line ${issue.line}`);
+  segments.push(issue.message);
+  return segments.join(": ");
 }
 
 function formatError(error: unknown): string {

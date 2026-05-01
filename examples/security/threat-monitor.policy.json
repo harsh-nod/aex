@@ -1,0 +1,7 @@
+{
+  "allow": ["git.diff", "git.apply", "tests.run"],
+  "require_confirmation": ["git.apply"],
+  "budget": {
+    "calls": 8
+  }
+}

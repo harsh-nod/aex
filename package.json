@@ -1,0 +1,22 @@
+{
+  "name": "@aex/monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @aex/cli",
+    "dev": "npm run dev -w @aex/cli",
+    "lint": "npm run lint -w @aex/cli",
+    "test": "npm run test -w @aex/cli"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "eslint": "^9.2.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.5"
+  }
+}

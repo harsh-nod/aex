@@ -1,0 +1,24 @@
+{
+  "name": "@aex/runtime",
+  "version": "0.0.1",
+  "description": "Local runtime for executing AEX contracts",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@aex/parser": "file:../aex-parser",
+    "@aex/validator": "file:../aex-validator"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

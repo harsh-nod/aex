@@ -1,0 +1,29 @@
+{
+  "name": "@aex/cli",
+  "version": "0.0.1",
+  "description": "Command-line interface for AEX contracts",
+  "bin": {
+    "aex": "dist/index.js"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@aex/parser": "file:../aex-parser",
+    "@aex/runtime": "file:../aex-runtime",
+    "@aex/validator": "file:../aex-validator",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

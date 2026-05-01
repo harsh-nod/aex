@@ -66,4 +66,6 @@ aex run tasks/fix-test.aex \
   --policy examples/fix-test/policy.json
 ```
 
+The runtime enforces contract permissions and policy budgets. If a step requires confirmation (`confirm before`), provide a confirmation handler when integrating with your agent runtime or the CLI will pause with a block message.
+
 The runtime will log every tool call and check.

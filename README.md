@@ -54,7 +54,7 @@ git clone https://github.com/harsh-nod/aex.git
 cd aex
 npm install
 npm run build
-# Or run the parser test suite
+# Run parser/validator/runtime tests
 npm test
 ```
 
@@ -66,6 +66,12 @@ aex init
 aex check tasks/fix-test.aex
 aex run tasks/fix-test.aex --inputs inputs.json --policy policy.json
 ```
+
+When you run a contract, the runtime enforces the intersection of contract permissions and runtime policy:
+
+- tool calls outside the allowed set are blocked
+- confirmation gates halt execution until a confirmation handler approves them
+- call budgets stop execution when the limit is exceeded
 
 ## Works with
 

@@ -20,6 +20,6 @@ Runtime policy intersects with the permissions requested in an AEX contract. The
 - `allow`: Capabilities or fully-qualified tool paths granted at runtime.
 - `deny`: Capabilities explicitly blocked even if the contract requests them.
 - `require_confirmation`: Tools that need a human approval gate.
-- `budget`: Numeric limits enforced during execution.
+- `budget`: Numeric limits enforced during execution. `calls` sets the maximum number of `do`/`make` steps that may run; the runtime stops once the limit is hit.
 
 The runtime will emit audit log events documenting every decision: allowed tool calls, denied requests, confirmations, and budget consumption.

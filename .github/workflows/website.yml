@@ -30,10 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Configure Pages
+      - name: Configure Pages (best-effort)
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
+        continue-on-error: true
 
       - name: Build docs
         run: npm run docs:build

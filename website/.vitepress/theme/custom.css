@@ -1,57 +1,129 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
 :root {
-  --vp-c-brand-1: #349bff;
-  --vp-c-brand-2: #5df4ff;
-  --vp-c-brand-3: #1663ff;
-  --vp-c-text-1: #e7eefc;
-  --vp-c-text-2: #b1bfd9;
-  --vp-c-link: #7ee0ff;
   --vp-font-family-base: "IBM Plex Sans", "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --vp-font-family-heading: "Space Grotesk", "IBM Plex Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --vp-font-family-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  --vp-c-brand-1: #2563ff;
+  --vp-c-brand-2: #4ae2ff;
+  --vp-c-brand-3: #1340ff;
+
+  --aex-bg-base: #f4f7ff;
+  --aex-bg-grad-1: radial-gradient(circle at 0% 0%, rgba(99, 130, 255, 0.28), transparent 55%);
+  --aex-bg-grad-2: radial-gradient(circle at 100% 100%, rgba(114, 227, 255, 0.18), transparent 60%);
+  --aex-bg-grad-3: linear-gradient(135deg, rgba(245, 248, 255, 0.95), rgba(229, 238, 255, 0.95));
+  --aex-bg-grid-1: repeating-linear-gradient(0deg, rgba(130, 149, 255, 0.08), rgba(130, 149, 255, 0.08) 1px, transparent 1px, transparent 48px);
+  --aex-bg-grid-2: repeating-linear-gradient(90deg, rgba(130, 149, 255, 0.08), rgba(130, 149, 255, 0.08) 1px, transparent 1px, transparent 48px);
+
+  --aex-text-1: #07102a;
+  --aex-text-2: #41517d;
+  --aex-link: #215aff;
+
+  --aex-nav-bg: rgba(255, 255, 255, 0.9);
+  --aex-nav-border: rgba(88, 110, 220, 0.16);
+  --aex-sidebar-bg: rgba(248, 250, 255, 0.94);
+  --aex-sidebar-border: rgba(88, 110, 220, 0.16);
+
+  --aex-panel-bg: rgba(255, 255, 255, 0.9);
+  --aex-panel-border: rgba(88, 110, 220, 0.16);
+  --aex-panel-shadow: 0 26px 60px rgba(22, 34, 74, 0.18);
+
+  --aex-card-bg: rgba(255, 255, 255, 0.94);
+  --aex-card-border: rgba(96, 122, 255, 0.2);
+  --aex-card-hover-border: rgba(72, 110, 255, 0.42);
+  --aex-card-shadow: 0 20px 44px rgba(18, 32, 78, 0.18);
+  --aex-card-hover-shadow: 0 28px 58px rgba(18, 32, 78, 0.25);
+
+  --aex-code-bg: rgba(236, 241, 255, 0.96);
+  --aex-code-border: rgba(104, 132, 255, 0.22);
+
+  --aex-button-secondary-bg: rgba(255, 255, 255, 0.88);
+  --aex-button-secondary-border: rgba(110, 138, 255, 0.32);
+  --aex-button-secondary-color: var(--aex-text-1);
+
+  --aex-footer-bg: rgba(245, 248, 255, 0.92);
+  --aex-footer-border: rgba(88, 110, 220, 0.14);
+  --aex-footer-text: rgba(68, 86, 135, 0.85);
+
+  --aex-blockquote-bg: rgba(227, 233, 255, 0.75);
+  --aex-blockquote-border: rgba(96, 122, 255, 0.35);
+
+  --vp-c-text-1: var(--aex-text-1);
+  --vp-c-text-2: var(--aex-text-2);
+  --vp-c-link: var(--aex-link);
+}
+
+.dark {
+  --aex-bg-base: #040615;
+  --aex-bg-grad-1: radial-gradient(circle at 0% 0%, rgba(38, 80, 255, 0.28), transparent 55%);
+  --aex-bg-grad-2: radial-gradient(circle at 100% 100%, rgba(24, 214, 255, 0.18), transparent 60%);
+  --aex-bg-grad-3: linear-gradient(135deg, rgba(7, 16, 40, 0.95), rgba(4, 10, 25, 0.95));
+  --aex-bg-grid-1: repeating-linear-gradient(0deg, rgba(37, 51, 99, 0.28), rgba(37, 51, 99, 0.28) 1px, transparent 1px, transparent 40px);
+  --aex-bg-grid-2: repeating-linear-gradient(90deg, rgba(37, 51, 99, 0.18), rgba(37, 51, 99, 0.18) 1px, transparent 1px, transparent 40px);
+
+  --aex-text-1: #e7eefc;
+  --aex-text-2: #b1bfd9;
+  --aex-link: #7ee0ff;
+
+  --aex-nav-bg: rgba(3, 6, 18, 0.86);
+  --aex-nav-border: rgba(78, 112, 255, 0.28);
+  --aex-sidebar-bg: rgba(11, 16, 35, 0.92);
+  --aex-sidebar-border: rgba(78, 112, 255, 0.28);
+
+  --aex-panel-bg: rgba(9, 14, 37, 0.78);
+  --aex-panel-border: rgba(78, 112, 255, 0.18);
+  --aex-panel-shadow: 0 -26px 60px rgba(0, 0, 0, 0.45);
+
+  --aex-card-bg: rgba(14, 20, 46, 0.9);
+  --aex-card-border: rgba(80, 105, 190, 0.45);
+  --aex-card-hover-border: rgba(125, 208, 255, 0.7);
+  --aex-card-shadow: 0 18px 45px rgba(4, 10, 30, 0.45);
+  --aex-card-hover-shadow: 0 26px 52px rgba(8, 20, 45, 0.6);
+
+  --aex-code-bg: linear-gradient(135deg, rgba(15, 20, 48, 0.95), rgba(11, 23, 55, 0.95));
+  --aex-code-border: rgba(90, 123, 255, 0.45);
+
+  --aex-button-secondary-bg: rgba(20, 28, 60, 0.6);
+  --aex-button-secondary-border: rgba(94, 134, 255, 0.35);
+  --aex-button-secondary-color: var(--aex-text-1);
+
+  --aex-footer-bg: rgba(3, 6, 18, 0.9);
+  --aex-footer-border: rgba(78, 112, 255, 0.2);
+  --aex-footer-text: rgba(160, 180, 214, 0.85);
+
+  --aex-blockquote-bg: rgba(21, 30, 70, 0.6);
+  --aex-blockquote-border: rgba(90, 123, 255, 0.45);
+
+  --vp-c-text-1: var(--aex-text-1);
+  --vp-c-text-2: var(--aex-text-2);
+  --vp-c-link: var(--aex-link);
 }
 
 body {
   font-family: var(--vp-font-family-base);
-  background-color: #040615;
-  background-image:
-    radial-gradient(circle at 0% 0%, rgba(38, 80, 255, 0.28), transparent 55%),
-    radial-gradient(circle at 100% 100%, rgba(24, 214, 255, 0.18), transparent 60%),
-    linear-gradient(135deg, rgba(7, 16, 40, 0.95), rgba(4, 10, 25, 0.95)),
-    repeating-linear-gradient(
-      0deg,
-      rgba(37, 51, 99, 0.28),
-      rgba(37, 51, 99, 0.28) 1px,
-      transparent 1px,
-      transparent 40px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      rgba(37, 51, 99, 0.18),
-      rgba(37, 51, 99, 0.18) 1px,
-      transparent 1px,
-      transparent 40px
-    );
-  color: var(--vp-c-text-1);
+  background-color: var(--aex-bg-base);
+  background-image: var(--aex-bg-grad-1), var(--aex-bg-grad-2), var(--aex-bg-grad-3), var(--aex-bg-grid-1), var(--aex-bg-grid-2);
   background-blend-mode: screen, screen, multiply, overlay, overlay;
+  color: var(--aex-text-1);
 }
 
 a {
-  color: var(--vp-c-link);
+  color: var(--aex-link);
   transition: color 0.2s ease;
 }
 
 a:hover {
-  color: #c4f7ff;
+  color: var(--vp-c-brand-2);
 }
 
 .VPNav {
-  background: rgba(3, 6, 18, 0.82);
+  background: var(--aex-nav-bg);
   backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(78, 112, 255, 0.25);
-  box-shadow: 0 18px 28px rgba(6, 14, 35, 0.45);
+  border-bottom: 1px solid var(--aex-nav-border);
+  box-shadow: 0 18px 32px rgba(20, 32, 64, 0.12);
   pointer-events: auto;
+  color: var(--aex-text-1);
 }
 
 .VPNavBarTitle .title {
@@ -60,10 +132,17 @@ a:hover {
   color: var(--vp-c-text-1);
 }
 
+.VPSidebar {
+  background: var(--aex-sidebar-bg);
+  border-right: 1px solid var(--aex-sidebar-border);
+  box-shadow: 12px 0 32px rgba(20, 32, 64, 0.08);
+  color: var(--aex-text-1);
+}
+
 .VPFooter {
-  background: rgba(3, 6, 18, 0.9);
-  border-top: 1px solid rgba(78, 112, 255, 0.2);
-  color: var(--vp-c-text-2);
+  background: var(--aex-footer-bg);
+  border-top: 1px solid var(--aex-footer-border);
+  color: var(--aex-footer-text);
 }
 
 .VPFooter .message {
@@ -74,7 +153,7 @@ a:hover {
 }
 
 .VPFooter .copyright {
-  color: var(--vp-c-text-2);
+  color: var(--aex-footer-text);
 }
 
 .VPDoc {
@@ -82,10 +161,10 @@ a:hover {
 }
 
 .VPContent .content {
-  background: rgba(9, 14, 37, 0.78);
+  background: var(--aex-panel-bg);
   border-radius: 24px 24px 0 0;
-  border: 1px solid rgba(78, 112, 255, 0.18);
-  box-shadow: 0 -26px 60px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--aex-panel-border);
+  box-shadow: var(--aex-panel-shadow);
   padding-bottom: 4rem;
 }
 
@@ -137,8 +216,9 @@ a:hover {
   font-family: var(--vp-font-family-heading);
   font-size: clamp(2.8rem, 5vw, 4rem);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  margin-bottom: 1.25rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 1.65rem;
+  line-height: 1.05;
   text-shadow: 0 0 35px rgba(86, 161, 255, 0.4);
 }
 
@@ -185,14 +265,15 @@ a:hover {
 }
 
 .hero-actions .action {
-  background: rgba(20, 28, 60, 0.6);
-  color: var(--vp-c-text-1);
-  border-color: rgba(94, 134, 255, 0.35);
+  background: var(--aex-button-secondary-bg);
+  color: var(--aex-button-secondary-color);
+  border-color: var(--aex-button-secondary-border);
 }
 
 .hero-actions .action:hover {
-  color: #ffffff;
-  border-color: rgba(125, 208, 255, 0.55);
+  color: var(--vp-c-text-1);
+  border-color: var(--vp-c-brand-1);
+  box-shadow: 0 18px 36px rgba(33, 90, 255, 0.28);
   transform: translateY(-2px);
 }
 
@@ -205,18 +286,18 @@ a:hover {
 }
 
 .landing-grid .card {
-  background: rgba(14, 20, 46, 0.9);
-  border: 1px solid rgba(80, 105, 190, 0.45);
+  background: var(--aex-card-bg);
+  border: 1px solid var(--aex-card-border);
   border-radius: 18px;
   padding: 2.15rem 2rem;
-  box-shadow: 0 18px 45px rgba(4, 10, 30, 0.45);
+  box-shadow: var(--aex-card-shadow);
   transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .landing-grid .card:hover {
   transform: translateY(-6px);
-  border-color: rgba(125, 208, 255, 0.7);
-  box-shadow: 0 26px 52px rgba(8, 20, 45, 0.6);
+  border-color: var(--aex-card-hover-border);
+  box-shadow: var(--aex-card-hover-shadow);
 }
 
 .landing-grid .card h3 {
@@ -258,15 +339,15 @@ a:hover {
 }
 
 .integrations pre {
-  background: linear-gradient(135deg, rgba(15, 20, 48, 0.95), rgba(11, 23, 55, 0.95));
-  color: #d8e6ff;
+  background: var(--aex-code-bg);
+  color: var(--vp-c-text-1);
   border-radius: 16px;
   padding: 1.1rem 1.3rem;
   font-size: 0.92rem;
   line-height: 1.6;
   overflow-x: auto;
-  border: 1px solid rgba(90, 123, 255, 0.45);
-  box-shadow: inset 0 0 0 1px rgba(85, 120, 255, 0.18), 0 24px 45px rgba(5, 10, 30, 0.6);
+  border: 1px solid var(--aex-code-border);
+  box-shadow: inset 0 0 0 1px rgba(85, 120, 255, 0.18), var(--aex-card-shadow);
 }
 
 .integrations code {
@@ -297,8 +378,8 @@ a:hover {
 }
 
 .VPDoc blockquote {
-  border-left: 3px solid rgba(90, 123, 255, 0.45);
-  background: rgba(21, 30, 70, 0.6);
+  border-left: 3px solid var(--aex-blockquote-border);
+  background: var(--aex-blockquote-bg);
   padding: 1rem 1.5rem;
   border-radius: 12px;
   color: var(--vp-c-text-2);

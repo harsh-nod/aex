@@ -391,3 +391,103 @@ function stripQuotes(value: string): string {
 function countOccurrences(value: string, token: string): number {
   return value.split(token).length - 1;
 }
+
+export interface AEXIR {
+  version: string;
+  agent: string;
+  goal?: string;
+  permissions: {
+    use: string[];
+    deny: string[];
+  };
+  needs: Record<string, string>;
+  budget?: Record<string, number>;
+  steps: AEXIRStep[];
+  return?: string;
+}
+
+export type AEXIRStep =
+  | {
+      op: "call";
+      tool: string;
+      args: Record<string, string>;
+      bind?: string;
+    }
+  | {
+      op: "make";
+      bind: string;
+      type: string;
+      inputs: string[];
+      instructions: string[];
+    }
+  | {
+      op: "check";
+      condition: string;
+    }
+  | {
+      op: "confirm";
+      tool: string;
+    }
+  | {
+      op: "return";
+      value: string;
+    };
+
+export function compileTask(task: AEXTask): AEXIR {
+  const agentName = task.agent?.name ?? "unknown_agent";
+  const agentVersion = task.agent?.version ?? "0";
+
+  const steps: AEXIRStep[] = task.steps.map((step) => {
+    switch (step.kind) {
+      case "do":
+        return {
+          op: "call",
+          tool: step.tool,
+          args: step.args,
+          bind: step.bind,
+        };
+      case "make":
+        return {
+          op: "make",
+          bind: step.bind,
+          type: step.type,
+          inputs: step.inputs,
+          instructions: step.instructions,
+        };
+      case "check":
+        return {
+          op: "check",
+          condition: step.condition,
+        };
+      case "confirm":
+        return {
+          op: "confirm",
+          tool: step.before,
+        };
+      case "return":
+        return {
+          op: "return",
+          value: step.expression,
+        };
+      default:
+        return {
+          op: "check",
+          condition: `unsupported step ${(step as AEXStep).kind}`,
+        };
+    }
+  });
+
+  return {
+    version: agentVersion,
+    agent: agentName,
+    goal: task.goal,
+    permissions: {
+      use: task.use,
+      deny: task.deny,
+    },
+    needs: task.needs,
+    budget: task.budget,
+    steps,
+    return: task.returnStatement,
+  };
+}

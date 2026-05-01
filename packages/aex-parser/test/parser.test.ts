@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAEX, ParseFailure } from "@aex/parser";
+import { parseAEX, ParseFailure, compileTask } from "@aex/parser";
 
 const SAMPLE_TASK = `agent fix_test v0
 
@@ -194,6 +194,26 @@ return {
           message: "Return block was not closed",
         }),
       ]),
+    );
+  });
+
+  it("compiles a parsed task into IR", () => {
+    const { task } = parseAEX(SAMPLE_TASK);
+    const ir = compileTask(task);
+
+    expect(ir.agent).toBe("fix_test");
+    expect(ir.version).toBe("0");
+    expect(ir.permissions.use).toContain("tests.run");
+    expect(ir.steps[0]).toEqual(
+      expect.objectContaining({
+        op: "call",
+        tool: "tests.run",
+      }),
+    );
+    expect(ir.steps.at(-1)).toEqual(
+      expect.objectContaining({
+        op: "return",
+      }),
     );
   });
 });

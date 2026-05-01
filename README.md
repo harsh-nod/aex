@@ -64,6 +64,7 @@ npm test
 # coming soon
 aex init
 aex check tasks/fix-test.aex
+aex compile tasks/fix-test.aex
 aex run tasks/fix-test.aex --inputs inputs.json --policy policy.json
 ```
 

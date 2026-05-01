@@ -50,6 +50,14 @@ return final
 aex check tasks/fix-test.aex
 ```
 
+## Compile to JSON IR
+
+```bash
+aex compile tasks/fix-test.aex
+```
+
+The JSON output captures permissions, needs, and step sequence for downstream runtimes.
+
 ## Run Parser Tests
 
 Verify the parser and validator behave as expected:

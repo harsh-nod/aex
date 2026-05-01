@@ -2,7 +2,7 @@
 
 import { Command } from "commander";
 import chalk from "chalk";
-import { parseFile, ParseError } from "@aex/parser";
+import { compileTask, parseFile, ParseError } from "@aex/parser";
 import { ValidationIssue, validateText } from "@aex/validator";
 import { runTask, RuntimePolicy } from "@aex/runtime";
 import { promises as fs } from "node:fs";
@@ -44,6 +44,21 @@ program
       const source = await fs.readFile(resolveInput(file), "utf8");
       const result = validateText(source);
       reportIssues(result.issues);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+program
+  .command("compile")
+  .argument("<file>", "AEX file to compile into JSON IR")
+  .description("Compile an AEX contract into its JSON intermediate representation")
+  .action(async (file: string) => {
+    try {
+      const result = await parseFile(resolveInput(file), { tolerant: true });
+      printDiagnostics(result.diagnostics);
+      const ir = compileTask(result.task);
+      process.stdout.write(`${JSON.stringify(ir, null, 2)}${EOL_WITH_NEWLINE}`);
     } catch (error) {
       handleError(error);
     }

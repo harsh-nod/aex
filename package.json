@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @aex/cli",
+    "build": "npm run build -w @aex/parser && npm run build -w @aex/validator && npm run build -w @aex/runtime && npm run build -w @aex/cli",
     "dev": "npm run dev -w @aex/cli",
     "lint": "npm run lint -w @aex/cli",
     "test": "npm run test -w @aex/cli"

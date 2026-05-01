@@ -1,0 +1,14 @@
+{
+  "allow": [
+    "web.search",
+    "web.open",
+    "model.make"
+  ],
+  "deny": [
+    "web.post",
+    "email.send",
+    "payment.*",
+    "secrets.read"
+  ],
+  "require_confirmation": []
+}

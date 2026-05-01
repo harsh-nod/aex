@@ -1,0 +1,23 @@
+agent research_brief v0
+
+goal "Create a cited research brief."
+
+use web.search, web.open, model.make
+deny web.post, email.send, payment.*, secrets.read
+
+need question: str
+
+budget calls=8
+
+do web.search(q=question, n=5) -> hits
+do web.open(urls=hits[:3].url) -> pages
+
+make brief: markdown from pages with:
+  - answer the question
+  - cite sources inline
+  - separate facts from inference
+  - list remaining uncertainty
+
+check brief has citations
+
+return brief

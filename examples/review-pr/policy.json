@@ -1,0 +1,13 @@
+{
+  "allow": [
+    "git.diff",
+    "file.read:/workspace/src/**",
+    "file.read:/workspace/tests/**"
+  ],
+  "deny": [
+    "file.write",
+    "network.*",
+    "secrets.read"
+  ],
+  "require_confirmation": []
+}

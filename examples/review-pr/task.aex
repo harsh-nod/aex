@@ -1,0 +1,23 @@
+agent review_pr v0
+
+goal "Review a pull request for correctness, risk, and test coverage."
+
+use git.diff, file.read
+deny file.write, network.*, secrets.read
+
+need pr_diff: file
+need changed_files: list[file]
+
+do git.diff(path=pr_diff) -> diff
+do file.read(paths=changed_files) -> sources
+
+make review: markdown from diff, sources with:
+  - identify correctness risks
+  - highlight missing tests
+  - separate blocking issues from suggestions
+  - stay focused on changes in this PR
+
+check review has "Blocking issues"
+check review has "Suggestions"
+
+return review

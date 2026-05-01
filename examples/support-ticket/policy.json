@@ -1,0 +1,16 @@
+{
+  "allow": [
+    "crm.lookup",
+    "ticket.read",
+    "email.draft"
+  ],
+  "deny": [
+    "email.send",
+    "payment.*",
+    "admin.*",
+    "secrets.read"
+  ],
+  "require_confirmation": [
+    "email.draft"
+  ]
+}

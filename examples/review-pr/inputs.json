@@ -1,0 +1,7 @@
+{
+  "pr_diff": "examples/review-pr/sample.diff",
+  "changed_files": [
+    "src/service.ts",
+    "tests/service.test.ts"
+  ]
+}

@@ -1,0 +1,13 @@
+diff --git a/src/service.ts b/src/service.ts
+index 1111111..2222222 100644
+--- a/src/service.ts
++++ b/src/service.ts
+@@
+-export function compute(value: number): number {
+-  return value * 2;
++export function compute(value: number, factor = 2): number {
++  if (value < 0) {
++    throw new Error("value must be non-negative");
++  }
++  return value * factor;
+ }

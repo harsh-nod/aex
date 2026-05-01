@@ -54,6 +54,8 @@ git clone https://github.com/harsh-nod/aex.git
 cd aex
 npm install
 npm run build
+# Or run the parser test suite
+npm test
 ```
 
 ## Quickstart

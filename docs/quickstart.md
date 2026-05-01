@@ -50,6 +50,14 @@ return final
 aex check tasks/fix-test.aex
 ```
 
+## Run Parser Tests
+
+Verify the parser and validator behave as expected:
+
+```bash
+npm test
+```
+
 ## Run It
 
 ```bash

@@ -10,7 +10,9 @@
     "build": "npm run build -w @aex/parser && npm run build -w @aex/validator && npm run build -w @aex/runtime && npm run build -w @aex/cli",
     "dev": "npm run dev -w @aex/cli",
     "lint": "npm run lint -w @aex/cli",
-    "test": "npm run test -w @aex/cli",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:cli": "npm run test -w @aex/cli",
     "docs:dev": "npm run dev -w @aex/website",
     "docs:build": "npm run build -w @aex/website"
   },
@@ -20,6 +22,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
     "prettier": "^3.2.5",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.5"
   }
 }

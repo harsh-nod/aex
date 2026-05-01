@@ -17,6 +17,19 @@ const TOOLS: ToolRegistry = {
     sideEffect: "none",
     handler: async () => ({ success: false }),
   },
+  "text.provide": {
+    sideEffect: "none",
+    handler: async (args) => String(args.value ?? ""),
+  },
+  "context.load": {
+    sideEffect: "none",
+    handler: async (args, ctx) => {
+      if (typeof args.key === "string") {
+        return ctx.inputs[args.key];
+      }
+      return args.key;
+    },
+  },
 };
 
 async function writeTempTask(contents: string): Promise<string> {
@@ -100,5 +113,112 @@ return outcome
     });
 
     expect(approved.status).toBe("success");
+  });
+
+  it("evaluates string inclusion checks", async () => {
+    const taskPath = await writeTempTask(`agent runtime_review v0
+
+goal "Validate review text"
+
+use text.provide
+
+need review_text: str
+
+do text.provide(value=review_text) -> review
+
+check review has "Blocking issues"
+check review has "Suggestions"
+
+return review
+`);
+
+    const ok = await runTask(taskPath, {
+      inputs: {
+        review_text: "Blocking issues:\n- Example\n\nSuggestions:\n- More tests",
+      },
+      tools: TOOLS,
+    });
+
+    expect(ok.status).toBe("success");
+
+    const bad = await runTask(taskPath, {
+      inputs: {
+        review_text: "Suggestions only.",
+      },
+      tools: TOOLS,
+    });
+
+    expect(bad.status).toBe("blocked");
+    expect(bad.issues[0]).toContain("Blocking issues");
+  });
+
+  it("detects forbidden substrings via does not include", async () => {
+    const taskPath = await writeTempTask(`agent runtime_support v0
+
+goal "Ensure reply does not leak notes"
+
+use context.load, text.provide
+
+need message: str
+need profile: object
+
+do context.load(key="profile") -> customer
+do text.provide(value=message) -> reply
+
+check reply does not include customer.internal_notes
+
+return reply
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: {
+        profile: { internal_notes: "SECRET", email: "user@example.com" },
+        message: "Hello! Your issue is resolved.",
+      },
+      tools: TOOLS,
+    });
+    expect(result.status).toBe("success");
+
+    const blocked = await runTask(taskPath, {
+      inputs: {
+        profile: { internal_notes: "SECRET", email: "user@example.com" },
+        message: "Hello SECRET customer",
+      },
+      tools: TOOLS,
+    });
+    expect(blocked.status).toBe("blocked");
+  });
+
+  it("passes citation checks", async () => {
+    const taskPath = await writeTempTask(`agent runtime_research v0
+
+goal "Check citations"
+
+use text.provide
+
+need body: str
+
+do text.provide(value=body) -> brief
+
+check brief has citations
+
+return brief
+`);
+
+    const ok = await runTask(taskPath, {
+      inputs: {
+        body: "See [Doc](https://example.com) for details.",
+      },
+      tools: TOOLS,
+    });
+    expect(ok.status).toBe("success");
+
+    const blocked = await runTask(taskPath, {
+      inputs: {
+        body: "No references here.",
+      },
+      tools: TOOLS,
+    });
+    expect(blocked.status).toBe("blocked");
   });
 });

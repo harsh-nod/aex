@@ -4,6 +4,7 @@ import {
   AEXDoStep,
   AEXMakeStep,
   AEXReturnStep,
+  AEXConfirmStep,
   AEXStep,
 } from "@aex/parser";
 import {
@@ -191,7 +192,10 @@ async function executeStep(
   }
 }
 
-async function executeDo(step: AEXDoStep, state: ExecutionState) {
+async function executeDo(
+  step: AEXDoStep,
+  state: ExecutionState,
+): Promise<StepResult> {
   const { task, policy } = state;
   const toolName = step.tool;
 
@@ -257,7 +261,10 @@ async function executeDo(step: AEXDoStep, state: ExecutionState) {
   }
 }
 
-async function executeMake(step: AEXMakeStep, state: ExecutionState) {
+async function executeMake(
+  step: AEXMakeStep,
+  state: ExecutionState,
+): Promise<StepResult> {
   if (!state.options.model) {
     return {
       status: "blocked",
@@ -286,11 +293,11 @@ async function executeMake(step: AEXMakeStep, state: ExecutionState) {
   }
 }
 
-async function executeCheck(
+function executeCheck(
   condition: string,
   state: ExecutionState,
   line: number,
-): Promise<StepResult> {
+): StepResult {
   const evaluation = evaluateCheck(condition, state);
   if (evaluation.ok) {
     state.context.logger({
@@ -365,11 +372,8 @@ function collectConfirmations(
   policy: NormalizedPolicy,
 ): Set<string> {
   const confirmationSteps = task.steps
-    .filter((step): step is { kind: "confirm"; before: string } =>
-      Boolean(step.kind === "confirm"),
-    )
-    .map((step) => (step.kind === "confirm" ? step.before : ""))
-    .filter(Boolean);
+    .filter((step): step is AEXConfirmStep => step.kind === "confirm")
+    .map((step) => step.before);
   return new Set([...confirmationSteps, ...policy.requireConfirmation]);
 }
 
@@ -437,6 +441,49 @@ function evaluateCheck(condition: string, state: ExecutionState): {
       return { ok: true };
     }
     return { ok: false, message: `Check "${condition}" evaluated to false.` };
+  }
+
+  const hasMatch = /^([A-Za-z0-9_.-]+)\s+has\s+"(.+)"$/.exec(trimmed);
+  if (hasMatch) {
+    const haystack = asText(resolvePath(hasMatch[1], state));
+    return haystack.includes(hasMatch[2])
+      ? { ok: true }
+      : {
+          ok: false,
+          message: `Expected "${hasMatch[1]}" to include "${hasMatch[2]}".`,
+        };
+  }
+
+  const citationsMatch = /^([A-Za-z0-9_.-]+)\s+has citations$/.exec(trimmed);
+  if (citationsMatch) {
+    const text = asText(resolvePath(citationsMatch[1], state));
+    const hasCitation =
+      /\[[^\]]+\]\([^)]+\)/.test(text) ||
+      /\[[0-9]+\]/.test(text) ||
+      /https?:\/\//.test(text);
+    return hasCitation
+      ? { ok: true }
+      : {
+          ok: false,
+          message: `Expected "${citationsMatch[1]}" to contain citations.`,
+        };
+  }
+
+  const notIncludeMatch =
+    /^([A-Za-z0-9_.-]+)\s+does not include\s+(.+)$/.exec(trimmed);
+  if (notIncludeMatch) {
+    const subject = asText(resolvePath(notIncludeMatch[1], state));
+    const rawNeedle = notIncludeMatch[2].trim();
+    const needle =
+      rawNeedle.startsWith('"') && rawNeedle.endsWith('"')
+        ? rawNeedle.slice(1, -1)
+        : asText(resolvePath(rawNeedle, state));
+    return subject.includes(needle)
+      ? {
+          ok: false,
+          message: `Expected "${notIncludeMatch[1]}" to avoid "${needle}".`,
+        }
+      : { ok: true };
   }
 
   switch (trimmed) {
@@ -623,6 +670,21 @@ function truthy(value: unknown): boolean {
     return value.length > 0;
   }
   return Boolean(value);
+}
+
+function asText(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "[object]";
+    }
+  }
+  return String(value);
 }
 
 function formatIssue(issue: ValidationIssue): string {

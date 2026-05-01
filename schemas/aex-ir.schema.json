@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aex.dev/schemas/aex-ir-v0.json",
+  "type": "object",
+  "required": ["version", "agent", "permissions", "needs", "steps"],
+  "properties": {
+    "version": { "type": "string" },
+    "agent": { "type": "string" },
+    "goal": { "type": "string" },
+    "permissions": {
+      "type": "object",
+      "required": ["use", "deny"],
+      "properties": {
+        "use": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "deny": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "needs": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["op", "tool", "args"],
+            "properties": {
+              "op": { "const": "call" },
+              "tool": { "type": "string" },
+              "args": {
+                "type": "object",
+                "additionalProperties": { "type": "string" }
+              },
+              "bind": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["op", "bind", "type", "inputs", "instructions"],
+            "properties": {
+              "op": { "const": "make" },
+              "bind": { "type": "string" },
+              "type": { "type": "string" },
+              "inputs": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "instructions": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["op", "condition"],
+            "properties": {
+              "op": { "const": "check" },
+              "condition": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["op", "tool"],
+            "properties": {
+              "op": { "const": "confirm" },
+              "tool": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["op", "value"],
+            "properties": {
+              "op": { "const": "return" },
+              "value": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "return": { "type": "string" }
+  },
+  "additionalProperties": false
+}

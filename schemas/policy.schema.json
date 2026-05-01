@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aex.dev/schemas/policy-v0.json",
+  "type": "object",
+  "properties": {
+    "allow": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "deny": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "require_confirmation": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "calls": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": {
+        "type": "number"
+      }
+    }
+  },
+  "additionalProperties": false
+}

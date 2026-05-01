@@ -23,3 +23,7 @@ Runtime policy intersects with the permissions requested in an AEX contract. The
 - `budget`: Numeric limits enforced during execution. `calls` sets the maximum number of `do`/`make` steps that may run; the runtime stops once the limit is hit.
 
 The runtime will emit audit log events documenting every decision: allowed tool calls, denied requests, confirmations, and budget consumption.
+
+### JSON Schema
+
+The repository ships a JSON Schema for policy files at [schemas/policy.schema.json](https://github.com/harsh-nod/aex/blob/main/schemas/policy.schema.json). The CLI validates policies against this schema automatically when you pass `--policy` to `aex run`.

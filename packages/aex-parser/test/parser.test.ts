@@ -43,11 +43,7 @@ describe("parseAEX", () => {
     expect(task.goal).toBe(
       "Fix the failing test with the smallest safe change.",
     );
-    expect(task.use).toEqual([
-      "file.read",
-      "file.write",
-      "tests.run",
-    ]);
+    expect(task.use).toEqual(["file.read", "file.write", "tests.run"]);
     expect(task.deny).toEqual(["network.*", "secrets.read"]);
     expect(task.needs).toEqual({
       test_cmd: "str",
@@ -93,5 +89,111 @@ describe("parseAEX", () => {
         throw error;
       }
     }
+  });
+
+  it("captures budget declarations as numeric values", () => {
+    const source = `agent demo v0
+
+goal "Budget check"
+
+use tests.run
+
+budget calls=10, dollars=25
+
+return result
+`;
+
+    const { task } = parseAEX(source);
+    expect(task.budget).toEqual({ calls: 10, dollars: 25 });
+  });
+
+  it("collects instructions for make steps and errors on malformed syntax", () => {
+    const valid = `agent writer v0
+
+goal "Compose"
+
+use model.make
+
+make draft: markdown from notes with:
+  - include intro
+  - add summary
+
+return draft
+`;
+
+    const { task } = parseAEX(valid);
+    const make = task.steps.find((step) => step.kind === "make");
+    expect(make).toBeDefined();
+    if (make?.kind === "make") {
+      expect(make.instructions).toEqual(["include intro", "add summary"]);
+      expect(make.inputs).toEqual(["notes"]);
+    }
+
+    const invalid = `agent writer v0
+
+goal "Compose"
+
+use model.make
+
+make draft markdown from notes with:
+
+return draft
+`;
+
+    const { diagnostics } = parseAEX(invalid, { tolerant: true });
+    expect(diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "Invalid make statement",
+        }),
+      ]),
+    );
+  });
+
+  it("tracks confirmation gates and multi-line return blocks", () => {
+    const source = `agent confirmation v0
+
+goal "Test confirms"
+
+use file.write
+
+confirm before file.write
+
+return {
+  status: "ok",
+  details: {
+    approved: true
+  }
+}
+`;
+
+    const { task } = parseAEX(source);
+    const confirm = task.steps.find((step) => step.kind === "confirm");
+    expect(confirm).toBeDefined();
+    if (confirm?.kind === "confirm") {
+      expect(confirm.before).toBe("file.write");
+    }
+    const returnStep = task.steps.at(-1);
+    expect(returnStep?.kind).toBe("return");
+    expect(task.returnStatement).toContain("approved: true");
+  });
+
+  it("reports unclosed return blocks", () => {
+    const source = `agent sample v0
+
+goal "broken return"
+
+return {
+  status: "bad"
+`;
+
+    const { diagnostics } = parseAEX(source, { tolerant: true });
+    expect(diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "Return block was not closed",
+        }),
+      ]),
+    );
   });
 });

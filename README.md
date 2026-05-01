@@ -77,6 +77,10 @@ aex run tasks/fix-test.aex --inputs inputs.json --policy policy.json
 
 AEX is pre-release software. Expect rapid iteration as the parser, validator, runtime, and adapters land.
 
+## Documentation
+
+The documentation site is published via GitHub Pages: once Actions completes, visit https://harsh-nod.github.io/aex for the latest guides.
+
 ## Contributing
 
 We welcome pull requests for examples, adapters, checks, docs, and tooling. See [docs/community/contributing.md](docs/community/contributing.md) once the contribution guide is published.

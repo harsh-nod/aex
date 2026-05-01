@@ -1,16 +1,20 @@
 # MCP Gateway
 
-The AEX MCP gateway sits between your agent and MCP servers, enforcing tool permissions, checks, and confirmation gates defined in the contract.
+The [`@aex/mcp-gateway`](https://github.com/harsh-nod/aex/tree/main/packages/aex-mcp-gateway) package helps you answer permission questions before forwarding tool calls to MCP servers.
 
-## Planned Features
+```ts
+import { AEXMCPGateway } from "@aex/mcp-gateway";
 
-- Filter tool calls based on `use` and `deny`
-- Enforce confirmation requirements before side-effectful tools
-- Apply path-level restrictions from runtime policy
-- Emit JSONL audit logs per run
+const gateway = new AEXMCPGateway("tasks/support-ticket.aex");
 
-Command preview:
+if (!(await gateway.allows("crm.lookup"))) {
+  throw new Error("crm.lookup is not allowed for this task.");
+}
 
-```bash
-aex mcp-gateway --task tasks/support-ticket.aex --policy policy.json
+const requiresApproval = await gateway.requiresConfirmation("ticket.read");
+if (requiresApproval) {
+  // surface a human approval prompt before forwarding the call
+}
 ```
+
+`summary()` returns the allow/deny/confirm sets so you can build runtime policies or audit dashboards directly from the `.aex` file.

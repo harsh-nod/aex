@@ -96,6 +96,28 @@ return report
       ]),
     );
   });
+
+  it("requires a return statement", () => {
+    const invalid = `agent sample v0
+
+goal "Demo"
+
+use file.read
+
+do file.read(paths="README.md") -> content
+`;
+
+    const parsed = parseAEX(invalid, { tolerant: true });
+    const result = validateParsed(parsed);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          message: "Task is missing a return statement.",
+        }),
+      ]),
+    );
+  });
 });
 
 function isError(issue: ValidationIssue): boolean {

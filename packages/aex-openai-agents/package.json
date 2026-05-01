@@ -1,0 +1,23 @@
+{
+  "name": "@aex/openai-agents",
+  "version": "0.0.1",
+  "description": "OpenAI Agents adapter guarded by AEX task contracts",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@aex/parser": "file:../aex-parser",
+    "@aex/runtime": "file:../aex-runtime"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

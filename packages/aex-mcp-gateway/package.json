@@ -1,0 +1,22 @@
+{
+  "name": "@aex/mcp-gateway",
+  "version": "0.0.1",
+  "description": "MCP gateway utilities for enforcing AEX contracts",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@aex/parser": "file:../aex-parser"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

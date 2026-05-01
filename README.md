@@ -61,7 +61,6 @@ npm test
 ## Quickstart
 
 ```bash
-# coming soon
 aex init
 aex check tasks/fix-test.aex
 aex compile tasks/fix-test.aex
@@ -73,6 +72,8 @@ When you run a contract, the runtime enforces the intersection of contract permi
 - tool calls outside the allowed set are blocked
 - confirmation gates halt execution until a confirmation handler approves them
 - call budgets stop execution when the limit is exceeded
+
+`aex run` accepts `--inputs` and `--policy` flags for JSON files and will prompt for confirmation gates unless you pass `--auto-confirm` during local experiments.
 
 ## Works with
 

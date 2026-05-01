@@ -16,7 +16,8 @@ export default defineConfig({
       { text: "Language", link: "/language/overview" },
       { text: "Examples", link: "/examples/" },
       { text: "Integrations", link: "/integrations/" },
-      { text: "Policy", link: "/reference/policy" }
+      { text: "Policy", link: "/reference/policy" },
+      { text: "Security", link: "/reference/security" }
     ],
     sidebar: {
       "/": [
@@ -55,11 +56,17 @@ export default defineConfig({
         },
         {
           text: "Reference",
-          items: [{ text: "Policy", link: "/reference/policy" }]
+          items: [
+            { text: "Policy", link: "/reference/policy" },
+            { text: "Security Model", link: "/reference/security" }
+          ]
         },
         {
           text: "Community",
-          items: [{ text: "Contributing", link: "/community/contributing" }]
+          items: [
+            { text: "Contributing", link: "/community/contributing" },
+            { text: "Roadmap", link: "/community/roadmap" }
+          ]
         }
       ]
     },

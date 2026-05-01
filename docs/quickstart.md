@@ -50,13 +50,21 @@ return final
 aex check tasks/fix-test.aex
 ```
 
+## Scaffold Files
+
+```bash
+aex init --task fix-test
+```
+
+This generates a starter contract plus matching inputs and policy files under `tasks/`.
+
 ## Compile to JSON IR
 
 ```bash
 aex compile tasks/fix-test.aex
 ```
 
-The JSON output captures permissions, needs, and step sequence for downstream runtimes.
+The JSON output captures permissions, needs, and step sequence for downstream runtimes. The CLI validates the result against the official IR schema before printing.
 
 ## Run Parser Tests
 

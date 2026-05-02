@@ -31,18 +31,32 @@
    - [x] `if` conditional branching with indentation-based blocks
    - [x] `for` loop iteration over lists
    - [x] Nested control flow (if inside for, etc.)
+7. **Remote tool registries**
+   - [x] `aex run --registry <url>` fetches tool definitions from HTTP endpoints
+   - [x] Remote tools execute via POST with JSON args/response
+8. **Policy inheritance & composition**
+   - [x] `extends` field in policies (file path or inline object)
+   - [x] `composePolicies()` merges allow/deny/confirmation/budget
+   - [x] Budget takes the minimum across composed policies
+9. **Structured logging & OpenTelemetry**
+   - [x] `createStructuredLogger()` with timestamps, traceId, spanId
+   - [x] `--log-json` flag for JSON event output
+   - [x] `--otlp-endpoint` flag exports traces in OTLP format
+   - [x] `exportToOTLP()` API for programmatic export
+10. **CI & publishing**
+    - [x] `setup-aex` GitHub Action (`action/action.yml`)
+    - [x] npm publish config (`publishConfig`, `exports`, `repository` on all packages)
+    - [x] `scripts/prepublish.sh` rewrites `file:` deps to versioned refs
 
 ## Up Next
 
-- Publish `@aex-lang/*` packages to npm
-- `aex run` support for remote tool registries
-- Policy inheritance and composition across contracts
-- Structured logging and OpenTelemetry export
-- `aex-lang/setup-aex` GitHub Action for CI
+- Publish `@aex-lang/*` packages to npm (requires npm org setup)
+- Stable API guarantees (v1.0 milestone)
+- Independent security audit
 
 ## Not Yet Done
 
-- npm packages are not published
+- npm packages are not published (config ready, needs credentials)
 - No stable API guarantees
 - No independent security audit
 

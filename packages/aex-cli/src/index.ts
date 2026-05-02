@@ -3,7 +3,14 @@
 import { Command } from "commander";
 import { compileTask, parseFile, ParseError } from "@aex-lang/parser";
 import { ValidationIssue, validateText } from "@aex-lang/validator";
-import { runTask, RuntimePolicy, ConfirmationHandler } from "@aex-lang/runtime";
+import {
+  runTask,
+  RuntimePolicy,
+  ConfirmationHandler,
+  resolvePolicy,
+  createStructuredLogger,
+  exportToOTLP,
+} from "@aex-lang/runtime";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -285,6 +292,9 @@ program
   )
   .option("--model <provider>", "Model provider for make steps (openai, anthropic)")
   .option("--model-handler <path>", "Path to a custom model handler module")
+  .option("--registry <url>", "URL of a remote tool registry")
+  .option("--otlp-endpoint <url>", "OpenTelemetry collector endpoint for trace export")
+  .option("--log-json", "Output structured log events as JSON")
   .description("Execute an AEX contract using the local runtime (experimental)")
   .action(
     async (
@@ -295,15 +305,21 @@ program
         autoConfirm?: boolean;
         model?: string;
         modelHandler?: string;
+        registry?: string;
+        otlpEndpoint?: string;
+        logJson?: boolean;
       },
     ) => {
       try {
         const inputs = options.inputs
           ? await loadInputs(resolveInput(options.inputs))
           : undefined;
-        const policy = options.policy
+        let policy = options.policy
           ? await loadPolicy(resolveInput(options.policy))
           : undefined;
+        if (policy) {
+          policy = await resolvePolicy(policy);
+        }
         const confirmHandler = options.autoConfirm
           ? alwaysApproveConfirmation
           : createPromptConfirmHandler();
@@ -311,13 +327,31 @@ program
           options.model,
           options.modelHandler,
         );
+        const registry = options.registry
+          ? { url: options.registry }
+          : undefined;
+        const structuredLog = createStructuredLogger();
+        const logFn = options.logJson
+          ? (event: { event: string; data?: Record<string, unknown> }) =>
+              structuredLog.log(event)
+          : logEvent;
         const result = await runTask(resolveInput(file), {
           policy,
           inputs,
           model: modelHandler,
           confirm: confirmHandler,
-          logger: logEvent,
+          logger: logFn,
+          registry,
         });
+        if (options.logJson) {
+          process.stdout.write(structuredLog.toJSON() + "\n");
+        }
+        if (options.otlpEndpoint) {
+          await exportToOTLP(structuredLog.toOTLP(), options.otlpEndpoint);
+          process.stdout.write(
+            `${c.green("✔")} Traces exported to ${options.otlpEndpoint}\n`,
+          );
+        }
         if (result.status === "blocked") {
           process.stderr.write(
             `${c.yellow("runtime blocked")}: ${result.issues.join(
@@ -426,7 +460,7 @@ function validatePolicyData(data: unknown): string[] {
   }
   const policy = data as Record<string, unknown>;
   const _schema = policySchema;
-  const allowedKeys = new Set(["allow", "deny", "require_confirmation", "budget"]);
+  const allowedKeys = new Set(["allow", "deny", "require_confirmation", "budget", "extends"]);
   for (const key of Object.keys(policy)) {
     if (!allowedKeys.has(key)) {
       issues.push(`Unknown policy field "${key}".`);

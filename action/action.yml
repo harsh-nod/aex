@@ -1,0 +1,36 @@
+name: "Setup AEX"
+description: "Install the AEX CLI for validating and running AI agent contracts in CI"
+branding:
+  icon: "shield"
+  color: "blue"
+
+inputs:
+  version:
+    description: "AEX CLI version to install (default: latest)"
+    required: false
+    default: "latest"
+  node-version:
+    description: "Node.js version to use"
+    required: false
+    default: "20"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Install AEX CLI
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          npm install -g @aex-lang/cli
+        else
+          npm install -g @aex-lang/cli@${{ inputs.version }}
+        fi
+
+    - name: Verify installation
+      shell: bash
+      run: aex --version

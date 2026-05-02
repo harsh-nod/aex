@@ -23,15 +23,194 @@ import { tmpdir } from "node:os";
 const execFile = promisify(childExecFile);
 
 export interface RuntimePolicy {
+  extends?: string | RuntimePolicy;
   allow?: string[];
   deny?: string[];
   require_confirmation?: string[];
   budget?: Record<string, number>;
 }
 
+export function composePolicies(...policies: RuntimePolicy[]): RuntimePolicy {
+  const result: RuntimePolicy = {};
+  const allAllow: string[] = [];
+  const allDeny: string[] = [];
+  const allConfirm: string[] = [];
+  const mergedBudget: Record<string, number> = {};
+
+  for (const policy of policies) {
+    if (policy.allow) allAllow.push(...policy.allow);
+    if (policy.deny) allDeny.push(...policy.deny);
+    if (policy.require_confirmation) allConfirm.push(...policy.require_confirmation);
+    if (policy.budget) {
+      for (const [key, value] of Object.entries(policy.budget)) {
+        mergedBudget[key] =
+          key in mergedBudget ? Math.min(mergedBudget[key], value) : value;
+      }
+    }
+  }
+
+  if (allAllow.length > 0) result.allow = [...new Set(allAllow)];
+  if (allDeny.length > 0) result.deny = [...new Set(allDeny)];
+  if (allConfirm.length > 0) result.require_confirmation = [...new Set(allConfirm)];
+  if (Object.keys(mergedBudget).length > 0) result.budget = mergedBudget;
+
+  return result;
+}
+
+export async function resolvePolicy(
+  policy: RuntimePolicy,
+  loader?: (ref: string) => Promise<RuntimePolicy>,
+): Promise<RuntimePolicy> {
+  if (!policy.extends) return policy;
+
+  let base: RuntimePolicy;
+  if (typeof policy.extends === "string") {
+    if (!loader) {
+      const raw = await fs.readFile(policy.extends, "utf8");
+      base = JSON.parse(raw) as RuntimePolicy;
+    } else {
+      base = await loader(policy.extends);
+    }
+    base = await resolvePolicy(base, loader);
+  } else {
+    base = await resolvePolicy(policy.extends, loader);
+  }
+
+  const { extends: _, ...ownFields } = policy;
+  return composePolicies(base, ownFields);
+}
+
 export interface RuntimeEvent {
   event: string;
   data?: Record<string, unknown>;
+  timestamp?: string;
+  traceId?: string;
+  spanId?: string;
+}
+
+export interface StructuredLogger {
+  log(event: RuntimeEvent): void;
+  getEvents(): RuntimeEvent[];
+  toJSON(): string;
+  toOTLP(): OTLPExportPayload;
+}
+
+export interface OTLPSpan {
+  traceId: string;
+  spanId: string;
+  name: string;
+  startTimeUnixNano: string;
+  endTimeUnixNano: string;
+  attributes: Array<{ key: string; value: { stringValue?: string; intValue?: string } }>;
+}
+
+export interface OTLPExportPayload {
+  resourceSpans: Array<{
+    resource: {
+      attributes: Array<{ key: string; value: { stringValue: string } }>;
+    };
+    scopeSpans: Array<{
+      scope: { name: string; version: string };
+      spans: OTLPSpan[];
+    }>;
+  }>;
+}
+
+function generateId(bytes: number): string {
+  const array = new Uint8Array(bytes);
+  crypto.getRandomValues(array);
+  return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export function createStructuredLogger(
+  agentName?: string,
+): StructuredLogger {
+  const events: RuntimeEvent[] = [];
+  const traceId = generateId(16);
+
+  return {
+    log(event: RuntimeEvent) {
+      events.push({
+        ...event,
+        timestamp: event.timestamp ?? new Date().toISOString(),
+        traceId,
+        spanId: generateId(8),
+      });
+    },
+    getEvents() {
+      return [...events];
+    },
+    toJSON() {
+      return JSON.stringify(events, null, 2);
+    },
+    toOTLP(): OTLPExportPayload {
+      const spans: OTLPSpan[] = events.map((ev) => {
+        const ts = ev.timestamp
+          ? (BigInt(new Date(ev.timestamp).getTime()) * 1_000_000n).toString()
+          : (BigInt(Date.now()) * 1_000_000n).toString();
+        const attributes: OTLPSpan["attributes"] = [
+          { key: "aex.event", value: { stringValue: ev.event } },
+        ];
+        if (ev.data) {
+          for (const [key, val] of Object.entries(ev.data)) {
+            attributes.push({
+              key: `aex.${key}`,
+              value: { stringValue: String(val) },
+            });
+          }
+        }
+        return {
+          traceId: ev.traceId ?? traceId,
+          spanId: ev.spanId ?? generateId(8),
+          name: ev.event,
+          startTimeUnixNano: ts,
+          endTimeUnixNano: ts,
+          attributes,
+        };
+      });
+
+      return {
+        resourceSpans: [
+          {
+            resource: {
+              attributes: [
+                {
+                  key: "service.name",
+                  value: { stringValue: agentName ?? "aex-runtime" },
+                },
+              ],
+            },
+            scopeSpans: [
+              {
+                scope: { name: "@aex-lang/runtime", version: "0.0.1" },
+                spans,
+              },
+            ],
+          },
+        ],
+      };
+    },
+  };
+}
+
+export async function exportToOTLP(
+  payload: OTLPExportPayload,
+  endpoint: string,
+  headers?: Record<string, string>,
+): Promise<void> {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(headers ?? {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `OTLP export failed: ${response.status.toString()} ${response.statusText}`,
+    );
+  }
 }
 
 export interface RunResult {
@@ -64,10 +243,16 @@ export interface ConfirmationHandler {
   >;
 }
 
+export interface RemoteToolRegistry {
+  url: string;
+  headers?: Record<string, string>;
+}
+
 export interface RunOptions {
   inputs?: Record<string, unknown>;
   policy?: RuntimePolicy;
   tools?: ToolRegistry;
+  registry?: RemoteToolRegistry;
   model?: ModelHandler;
   confirm?: ConfirmationHandler;
   logger?: (event: RuntimeEvent) => void;
@@ -101,6 +286,67 @@ interface NormalizedPolicy {
   budgetCalls?: number;
 }
 
+export async function fetchRemoteTools(
+  registry: RemoteToolRegistry,
+): Promise<ToolRegistry> {
+  const response = await fetch(registry.url, {
+    headers: {
+      Accept: "application/json",
+      ...(registry.headers ?? {}),
+    },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Remote registry returned ${response.status.toString()}: ${response.statusText}`,
+    );
+  }
+  const payload = (await response.json()) as {
+    tools?: Record<string, { sideEffect?: string; url?: string; description?: string }>;
+  };
+  if (!payload.tools || typeof payload.tools !== "object") {
+    throw new Error("Remote registry response must contain a `tools` object.");
+  }
+  const result: ToolRegistry = {};
+  for (const [name, def] of Object.entries(payload.tools)) {
+    const sideEffect = (
+      ["none", "read", "write"].includes(def.sideEffect ?? "")
+        ? def.sideEffect
+        : "write"
+    ) as "none" | "read" | "write";
+    const toolUrl = def.url;
+    if (!toolUrl) {
+      continue;
+    }
+    result[name] = {
+      sideEffect,
+      handler: createRemoteToolHandler(toolUrl, registry.headers),
+    };
+  }
+  return result;
+}
+
+function createRemoteToolHandler(
+  url: string,
+  headers?: Record<string, string>,
+): ToolHandler {
+  return async (args) => {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(headers ?? {}),
+      },
+      body: JSON.stringify(args),
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Remote tool returned ${response.status.toString()}: ${response.statusText}`,
+      );
+    }
+    return response.json();
+  };
+}
+
 export async function runTask(
   filePath: string,
   options: RunOptions = {},
@@ -115,6 +361,12 @@ export async function runTask(
     return { status: "blocked", issues: validationErrors };
   }
 
+  let mergedTools = options.tools;
+  if (options.registry) {
+    const remoteTools = await fetchRemoteTools(options.registry);
+    mergedTools = { ...(mergedTools ?? {}), ...remoteTools };
+  }
+
   const normalizedPolicy = normalizePolicy(options.policy);
   const confirmations = collectConfirmations(validation.task, normalizedPolicy);
 
@@ -126,10 +378,14 @@ export async function runTask(
     }),
   };
 
+  const effectiveOptions = mergedTools
+    ? { ...options, tools: mergedTools }
+    : options;
+
   const state: ExecutionState = {
     context,
     task: validation.task,
-    options,
+    options: effectiveOptions,
     policy: normalizedPolicy,
     confirmations,
     callsUsed: 0,

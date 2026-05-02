@@ -3,6 +3,12 @@
   "$id": "https://harsh-nod.github.io/aex/schemas/policy-v0.json",
   "type": "object",
   "properties": {
+    "extends": {
+      "oneOf": [
+        { "type": "string" },
+        { "$ref": "#" }
+      ]
+    },
     "allow": {
       "type": "array",
       "items": { "type": "string" }

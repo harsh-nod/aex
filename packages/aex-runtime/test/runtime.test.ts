@@ -5,7 +5,13 @@ import path from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 import { execFile as childExecFile } from "node:child_process";
-import { runTask, ToolRegistry } from "@aex-lang/runtime";
+import {
+  runTask,
+  ToolRegistry,
+  composePolicies,
+  resolvePolicy,
+  createStructuredLogger,
+} from "@aex-lang/runtime";
 import { parseFile, matchPattern, matchesAny } from "@aex-lang/parser";
 import { taskToLangGraph } from "../../aex-langgraph/src/index.js";
 
@@ -664,6 +670,202 @@ describe("matchesAny", () => {
   it("returns true when any pattern matches", () => {
     expect(matchesAny("file.read", ["network.*", "file.*"])).toBe(true);
     expect(matchesAny("file.read", ["network.*", "shell.*"])).toBe(false);
+  });
+});
+
+describe("policy composition", () => {
+  it("merges allow, deny, and confirmation lists", () => {
+    const base = {
+      allow: ["file.read", "file.write"],
+      deny: ["network.*"],
+      require_confirmation: ["file.write"],
+      budget: { calls: 20 },
+    };
+    const overlay = {
+      allow: ["tests.run"],
+      deny: ["secrets.read"],
+      require_confirmation: ["tests.run"],
+      budget: { calls: 10 },
+    };
+    const merged = composePolicies(base, overlay);
+    expect(merged.allow).toContain("file.read");
+    expect(merged.allow).toContain("tests.run");
+    expect(merged.deny).toContain("network.*");
+    expect(merged.deny).toContain("secrets.read");
+    expect(merged.require_confirmation).toContain("file.write");
+    expect(merged.require_confirmation).toContain("tests.run");
+    expect(merged.budget?.calls).toBe(10);
+  });
+
+  it("takes minimum budget from composed policies", () => {
+    const a = { budget: { calls: 100, dollars: 50 } };
+    const b = { budget: { calls: 5, dollars: 200 } };
+    const merged = composePolicies(a, b);
+    expect(merged.budget?.calls).toBe(5);
+    expect(merged.budget?.dollars).toBe(50);
+  });
+
+  it("deduplicates allow/deny entries", () => {
+    const a = { allow: ["file.read", "file.write"] };
+    const b = { allow: ["file.read", "tests.run"] };
+    const merged = composePolicies(a, b);
+    expect(merged.allow?.filter((x) => x === "file.read")).toHaveLength(1);
+  });
+});
+
+describe("policy inheritance", () => {
+  it("resolves inline extends", async () => {
+    const child = {
+      extends: {
+        allow: ["file.read"],
+        deny: ["network.*"],
+      },
+      allow: ["tests.run"],
+      budget: { calls: 5 },
+    };
+    const resolved = await resolvePolicy(child);
+    expect(resolved.allow).toContain("file.read");
+    expect(resolved.allow).toContain("tests.run");
+    expect(resolved.deny).toContain("network.*");
+    expect(resolved.budget?.calls).toBe(5);
+  });
+
+  it("resolves file-based extends", async () => {
+    const dir = await fs.mkdtemp(path.join(tmpdir(), "aex-policy-"));
+    const basePath = path.join(dir, "base.json");
+    await fs.writeFile(
+      basePath,
+      JSON.stringify({
+        allow: ["file.read"],
+        deny: ["secrets.read"],
+        budget: { calls: 50 },
+      }),
+      "utf8",
+    );
+    const child = {
+      extends: basePath,
+      allow: ["tests.run"],
+      budget: { calls: 10 },
+    };
+    const resolved = await resolvePolicy(child);
+    expect(resolved.allow).toContain("file.read");
+    expect(resolved.allow).toContain("tests.run");
+    expect(resolved.deny).toContain("secrets.read");
+    expect(resolved.budget?.calls).toBe(10);
+  });
+
+  it("applies inherited policy at runtime", async () => {
+    const taskPath = await writeTempTask(`agent policy_inherit v0
+
+goal "Policy inheritance"
+
+use tests.success
+
+budget calls=100
+
+do tests.success(input=val) -> r1
+do tests.success(input=val) -> r2
+
+return r2
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: { val: "ok" },
+      tools: TOOLS,
+      policy: {
+        extends: { budget: { calls: 50 } },
+        budget: { calls: 1 },
+      },
+    });
+    expect(result.status).toBe("blocked");
+    expect(result.issues[0]).toContain("budget exhausted");
+  });
+});
+
+describe("structured logger", () => {
+  it("captures events with timestamps and trace IDs", () => {
+    const logger = createStructuredLogger("test-agent");
+    logger.log({ event: "run.started", data: { agent: "test" } });
+    logger.log({ event: "tool.allowed", data: { tool: "file.read" } });
+
+    const events = logger.getEvents();
+    expect(events).toHaveLength(2);
+    expect(events[0].timestamp).toBeDefined();
+    expect(events[0].traceId).toBeDefined();
+    expect(events[0].spanId).toBeDefined();
+    expect(events[0].traceId).toBe(events[1].traceId);
+    expect(events[0].spanId).not.toBe(events[1].spanId);
+  });
+
+  it("exports as JSON", () => {
+    const logger = createStructuredLogger();
+    logger.log({ event: "check.passed" });
+    const json = JSON.parse(logger.toJSON());
+    expect(json).toHaveLength(1);
+    expect(json[0].event).toBe("check.passed");
+  });
+
+  it("exports as OTLP payload", () => {
+    const logger = createStructuredLogger("my-agent");
+    logger.log({ event: "run.started", data: { agent: "my-agent" } });
+    logger.log({ event: "tool.allowed", data: { tool: "file.read" } });
+
+    const otlp = logger.toOTLP();
+    expect(otlp.resourceSpans).toHaveLength(1);
+    expect(otlp.resourceSpans[0].resource.attributes[0].value.stringValue).toBe("my-agent");
+    const spans = otlp.resourceSpans[0].scopeSpans[0].spans;
+    expect(spans).toHaveLength(2);
+    expect(spans[0].name).toBe("run.started");
+    expect(spans[0].attributes.find((a) => a.key === "aex.event")?.value.stringValue).toBe("run.started");
+  });
+
+  it("integrates with runTask logger option", async () => {
+    const logger = createStructuredLogger();
+    const taskPath = await writeTempTask(`agent logger_test v0
+
+goal "Structured logging"
+
+use tests.success
+
+do tests.success(input=true) -> result
+
+return result
+`);
+    await runTask(taskPath, {
+      tools: TOOLS,
+      logger: (event) => logger.log(event),
+    });
+
+    const events = logger.getEvents();
+    expect(events.length).toBeGreaterThan(0);
+    expect(events.find((e) => e.event === "run.started")).toBeDefined();
+    expect(events.find((e) => e.event === "run.finished")).toBeDefined();
+  });
+});
+
+describe("remote tool registry", () => {
+  it("passes registry option to runTask", async () => {
+    const taskPath = await writeTempTask(`agent registry_test v0
+
+goal "Test custom tools"
+
+use custom.echo
+
+do custom.echo(msg=val) -> result
+
+return result
+`);
+    const result = await runTask(taskPath, {
+      inputs: { val: "hello" },
+      tools: {
+        "custom.echo": {
+          sideEffect: "none",
+          handler: async (args) => ({ echo: args.msg }),
+        },
+      },
+    });
+    expect(result.status).toBe("success");
+    expect(result.output).toEqual({ echo: "hello" });
   });
 });
 

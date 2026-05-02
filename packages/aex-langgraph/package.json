@@ -2,12 +2,29 @@
   "name": "@aex-lang/langgraph",
   "version": "0.0.1",
   "description": "LangGraph compiler for AEX contracts",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/harsh-nod/aex.git",
+    "directory": "packages/aex-langgraph"
+  },
+  "homepage": "https://harsh-nod.github.io/aex",
+  "keywords": ["aex", "ai", "agent", "langgraph", "contract"],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
@@ -16,5 +33,8 @@
   "dependencies": {
     "@aex-lang/parser": "file:../aex-parser",
     "@aex-lang/validator": "file:../aex-validator"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
   }
 }

@@ -82,6 +82,8 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
     });
   }
 
+  checkNeedTypes(task.needs, issues);
+
   const allowedTools = new Set(task.use);
   const deniedTools = new Set(task.deny);
   const knownValues = new Set(Object.keys(task.needs));
@@ -89,6 +91,33 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
   validateSteps(task.steps, allowedTools, deniedTools, knownValues, issues);
 
   return { task, issues };
+}
+
+const KNOWN_TYPES = new Set([
+  "str", "num", "int", "bool", "file", "url", "json",
+]);
+
+function isKnownBaseType(type: string): boolean {
+  if (KNOWN_TYPES.has(type)) return true;
+  if (type.endsWith("?")) return isKnownBaseType(type.slice(0, -1));
+  const listMatch = /^list\[(.+)\]$/.exec(type);
+  if (listMatch) return isKnownBaseType(listMatch[1]);
+  return false;
+}
+
+function checkNeedTypes(
+  needs: Record<string, string>,
+  issues: ValidationIssue[],
+) {
+  for (const [name, type] of Object.entries(needs)) {
+    if (!isKnownBaseType(type)) {
+      issues.push({
+        message: `Input "${name}" declares unknown type "${type}". Known types: str, num, int, bool, file, url, json, list[T], T?.`,
+        severity: "error",
+        code: "AEX032",
+      });
+    }
+  }
 }
 
 function validateSteps(

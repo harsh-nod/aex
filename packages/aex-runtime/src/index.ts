@@ -347,6 +347,86 @@ function createRemoteToolHandler(
   };
 }
 
+const KNOWN_TYPES = new Set([
+  "str", "num", "int", "bool", "file", "url", "json",
+]);
+
+function isKnownType(type: string): boolean {
+  if (KNOWN_TYPES.has(type)) return true;
+  if (type.endsWith("?")) return isKnownType(type.slice(0, -1));
+  const listMatch = /^list\[(.+)\]$/.exec(type);
+  if (listMatch) return isKnownType(listMatch[1]);
+  return false;
+}
+
+function matchesType(value: unknown, type: string): boolean {
+  if (type === "str") return typeof value === "string";
+  if (type === "num") return typeof value === "number" && Number.isFinite(value);
+  if (type === "int") return Number.isInteger(value);
+  if (type === "bool") return typeof value === "boolean";
+  if (type === "json") return true;
+  if (type === "file") return typeof value === "string" && value.length > 0;
+  if (type === "url") {
+    if (typeof value !== "string") return false;
+    try { new URL(value); return true; } catch { return false; }
+  }
+  const listMatch = /^list\[(.+)\]$/.exec(type);
+  if (listMatch) {
+    return Array.isArray(value) && value.every((item) => matchesType(item, listMatch[1]));
+  }
+  return false;
+}
+
+function actualType(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "list";
+  return typeof value;
+}
+
+export interface InputIssue {
+  event: "input.missing" | "input.invalid";
+  input: string;
+  expected: string;
+  actual?: string;
+  code: string;
+}
+
+export function validateInputs(
+  needs: Record<string, string>,
+  inputs: Record<string, unknown>,
+): InputIssue[] {
+  const issues: InputIssue[] = [];
+
+  for (const [name, type] of Object.entries(needs)) {
+    const optional = type.endsWith("?");
+    const expected = optional ? type.slice(0, -1) : type;
+
+    if (!(name in inputs)) {
+      if (!optional) {
+        issues.push({
+          event: "input.missing",
+          input: name,
+          expected: type,
+          code: "AEX030",
+        });
+      }
+      continue;
+    }
+
+    if (!matchesType(inputs[name], expected)) {
+      issues.push({
+        event: "input.invalid",
+        input: name,
+        expected,
+        actual: actualType(inputs[name]),
+        code: "AEX031",
+      });
+    }
+  }
+
+  return issues;
+}
+
 export async function runTask(
   filePath: string,
   options: RunOptions = {},
@@ -359,6 +439,25 @@ export async function runTask(
 
   if (validationErrors.length > 0) {
     return { status: "blocked", issues: validationErrors };
+  }
+
+  const inputIssues = validateInputs(
+    validation.task.needs,
+    options.inputs ?? {},
+  );
+  if (inputIssues.length > 0) {
+    const logger = options.logger ?? (() => { /* noop */ });
+    for (const issue of inputIssues) {
+      logger({ event: issue.event, data: { input: issue.input, expected: issue.expected, actual: issue.actual } });
+    }
+    return {
+      status: "blocked",
+      issues: inputIssues.map((i) =>
+        i.event === "input.missing"
+          ? `${i.code}: Missing required input "${i.input}" of type "${i.expected}".`
+          : `${i.code}: Input "${i.input}" expected ${i.expected}, got ${i.actual}.`,
+      ),
+    };
   }
 
   let mergedTools = options.tools;

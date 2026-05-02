@@ -11,6 +11,7 @@ import {
   composePolicies,
   resolvePolicy,
   createStructuredLogger,
+  validateInputs,
 } from "@aex-lang/runtime";
 import { parseFile, matchPattern, matchesAny } from "@aex-lang/parser";
 import { taskToLangGraph } from "../../aex-langgraph/src/index.js";
@@ -183,7 +184,7 @@ goal "Ensure reply does not leak notes"
 use context.load, text.provide
 
 need message: str
-need profile: object
+need profile: json
 
 do context.load(key="profile") -> customer
 do text.provide(value=message) -> reply
@@ -866,6 +867,149 @@ return result
     });
     expect(result.status).toBe("success");
     expect(result.output).toEqual({ echo: "hello" });
+  });
+});
+
+describe("input validation", () => {
+  it("reports missing required inputs", () => {
+    const issues = validateInputs(
+      { test_cmd: "str", target_files: "list[file]" },
+      { test_cmd: "npm test" },
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0].event).toBe("input.missing");
+    expect(issues[0].input).toBe("target_files");
+    expect(issues[0].expected).toBe("list[file]");
+    expect(issues[0].code).toBe("AEX030");
+  });
+
+  it("reports type mismatches", () => {
+    const issues = validateInputs(
+      { test_cmd: "str", target_files: "list[file]" },
+      { test_cmd: "npm test", target_files: "src/foo.ts" },
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0].event).toBe("input.invalid");
+    expect(issues[0].input).toBe("target_files");
+    expect(issues[0].expected).toBe("list[file]");
+    expect(issues[0].actual).toBe("string");
+    expect(issues[0].code).toBe("AEX031");
+  });
+
+  it("accepts valid inputs", () => {
+    const issues = validateInputs(
+      { test_cmd: "str", target_files: "list[file]" },
+      { test_cmd: "npm test", target_files: ["src/foo.ts", "tests/foo.test.ts"] },
+    );
+    expect(issues).toHaveLength(0);
+  });
+
+  it("allows optional inputs to be missing", () => {
+    const issues = validateInputs(
+      { name: "str", nickname: "str?" },
+      { name: "Alice" },
+    );
+    expect(issues).toHaveLength(0);
+  });
+
+  it("validates optional inputs when present", () => {
+    const issues = validateInputs(
+      { name: "str", count: "int?" },
+      { name: "Alice", count: 3.5 },
+    );
+    expect(issues).toHaveLength(1);
+    expect(issues[0].event).toBe("input.invalid");
+    expect(issues[0].expected).toBe("int");
+  });
+
+  it("validates all primitive types", () => {
+    expect(validateInputs({ v: "str" }, { v: "hello" })).toHaveLength(0);
+    expect(validateInputs({ v: "str" }, { v: 42 })).toHaveLength(1);
+    expect(validateInputs({ v: "num" }, { v: 3.14 })).toHaveLength(0);
+    expect(validateInputs({ v: "num" }, { v: "3.14" })).toHaveLength(1);
+    expect(validateInputs({ v: "int" }, { v: 5 })).toHaveLength(0);
+    expect(validateInputs({ v: "int" }, { v: 5.5 })).toHaveLength(1);
+    expect(validateInputs({ v: "bool" }, { v: true })).toHaveLength(0);
+    expect(validateInputs({ v: "bool" }, { v: "true" })).toHaveLength(1);
+    expect(validateInputs({ v: "file" }, { v: "src/foo.ts" })).toHaveLength(0);
+    expect(validateInputs({ v: "file" }, { v: "" })).toHaveLength(1);
+    expect(validateInputs({ v: "url" }, { v: "https://example.com" })).toHaveLength(0);
+    expect(validateInputs({ v: "url" }, { v: "not-a-url" })).toHaveLength(1);
+    expect(validateInputs({ v: "json" }, { v: { any: "thing" } })).toHaveLength(0);
+    expect(validateInputs({ v: "json" }, { v: "also fine" })).toHaveLength(0);
+  });
+
+  it("validates list element types", () => {
+    expect(validateInputs({ v: "list[str]" }, { v: ["a", "b"] })).toHaveLength(0);
+    expect(validateInputs({ v: "list[str]" }, { v: ["a", 1] })).toHaveLength(1);
+    expect(validateInputs({ v: "list[int]" }, { v: [1, 2, 3] })).toHaveLength(0);
+    expect(validateInputs({ v: "list[int]" }, { v: [1, 2.5] })).toHaveLength(1);
+  });
+
+  it("blocks execution in runTask when inputs are invalid", async () => {
+    const taskPath = await writeTempTask(`agent input_check v0
+
+goal "Validate inputs"
+
+use tests.success
+
+need test_cmd: str
+need target_files: list[file]
+
+do tests.success(input=test_cmd) -> result
+
+return result
+`);
+
+    const missing = await runTask(taskPath, {
+      inputs: { test_cmd: "npm test" },
+      tools: TOOLS,
+    });
+    expect(missing.status).toBe("blocked");
+    expect(missing.issues[0]).toContain("AEX030");
+    expect(missing.issues[0]).toContain("target_files");
+
+    const wrongType = await runTask(taskPath, {
+      inputs: { test_cmd: "npm test", target_files: "src/foo.ts" },
+      tools: TOOLS,
+    });
+    expect(wrongType.status).toBe("blocked");
+    expect(wrongType.issues[0]).toContain("AEX031");
+    expect(wrongType.issues[0]).toContain("list[file]");
+
+    const valid = await runTask(taskPath, {
+      inputs: { test_cmd: "npm test", target_files: ["src/foo.ts"] },
+      tools: TOOLS,
+    });
+    expect(valid.status).toBe("success");
+  });
+
+  it("emits structured events for input issues", async () => {
+    const events: Array<{ event: string; data?: Record<string, unknown> }> = [];
+    const taskPath = await writeTempTask(`agent input_events v0
+
+goal "Log input issues"
+
+use tests.success
+
+need count: int
+
+do tests.success(input=true) -> r
+
+return r
+`);
+
+    await runTask(taskPath, {
+      inputs: { count: "not a number" },
+      tools: TOOLS,
+      logger: (ev) => events.push(ev),
+    });
+
+    const inputEvent = events.find((e) => e.event === "input.invalid");
+    expect(inputEvent).toBeDefined();
+    expect(inputEvent!.data?.input).toBe("count");
+    expect(inputEvent!.data?.expected).toBe("int");
+    expect(inputEvent!.data?.actual).toBe("string");
   });
 });
 

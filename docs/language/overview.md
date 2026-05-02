@@ -34,7 +34,7 @@ need test_cmd: str
 need target_files: list[file]
 ```
 
-Inputs are required at runtime before the contract executes.
+`need` declares required runtime inputs. AEX validates the presence and type of each input before executing any tool or model step. Supported types: `str`, `num`, `int`, `bool`, `file`, `url`, `json`, `list[T]`, and `T?` (optional). Missing or mistyped inputs block execution immediately.
 
 ## Steps
 
@@ -74,6 +74,35 @@ Built-in checks include:
 - `value does not include other_value` &mdash; forbids sensitive tokens
 - `patch is valid diff` &mdash; validates unified diff structure
 - `patch touches only target_files` &mdash; ensures the diff stays within an allowed list
+
+## Control Flow
+
+### Conditional (`if`)
+
+Execute steps only when a condition is true:
+
+```aex
+do tests.run(cmd=test_cmd) -> result
+
+if result.passed
+  do file.write(diff=patch) -> written
+```
+
+The body is indented under the `if` line. If the condition is false, the body is skipped.
+
+### Iteration (`for`)
+
+Loop over a list input:
+
+```aex
+need repos: list[str]
+
+for repo in repos
+  do git.diff(paths=[repo]) -> diff
+  check diff is valid diff
+```
+
+The loop variable (`repo`) is scoped to the body. Budget limits count each iteration separately — a `budget calls=3` with a 5-element list will block after the third call.
 
 ## Built-in Tools
 

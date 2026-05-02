@@ -1,0 +1,10 @@
+policy workspace v0
+
+goal "Security boundary for the fix-test workspace."
+
+use file.read, file.write, tests.run
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=20

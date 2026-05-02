@@ -79,6 +79,19 @@ do console.log(msg=name) -> result
 
 return result`,
   },
+  {
+    label: "Policy File",
+    source: `policy workspace v0
+
+goal "Default security boundary for this repository."
+
+use file.read, file.write, tests.run, git.*
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=100`,
+  },
 ];
 
 const source = ref(EXAMPLES[0].source);

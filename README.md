@@ -2,7 +2,14 @@
 
 > **Executable contracts for AI agents.** Prompts are not permissions.
 
-AEX is a tiny, readable task-contract format that constrains what an AI agent may do, what it must check, and what requires human approval. Install the CLI, add an `.aex` file to your repo, and your existing agent stack gains an enforceable contract layer.
+AEX is a tiny, readable contract format that constrains what an AI agent may do, what it must check, and what requires human approval. Install the CLI, add `.aex` files to your repo, and your existing agent stack gains an enforceable contract layer.
+
+AEX has two file types:
+
+- **Policy** (`policy workspace v0`) — ambient security boundary for an entire session or repo
+- **Task** (`agent fix_test v0`) — specific execution contract for a single task
+
+When both are active, the effective permissions are the most restrictive combination.
 
 ```aex
 agent fix_test v0
@@ -39,6 +46,21 @@ return {
 }
 ```
 
+And the policy that governs it:
+
+```aex
+policy workspace v0
+
+goal "Default security boundary for this repository."
+
+use file.read, file.write, tests.run, git.*
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=100
+```
+
 ## Why AEX?
 
 - **Readable:** Learn the format from one file.
@@ -67,36 +89,48 @@ npm install @aex-lang/parser @aex-lang/runtime
 ## Quickstart
 
 ```bash
-aex init
+# Create a policy boundary for your repo
+aex init --policy
+
+# Create a task contract
+aex init --task fix-test
+
+# Validate both
+aex check .aex/policy.aex
 aex check tasks/fix-test.aex
-aex fmt tasks/fix-test.aex
-aex compile tasks/fix-test.aex
-aex run tasks/fix-test.aex --inputs inputs.json --policy policy.json
-aex sign tasks/fix-test.aex --id release-bot --key-file signing.key
+
+# See effective permissions
+aex effective --contract tasks/fix-test.aex
+
+# Run with enforcement
+aex run tasks/fix-test.aex --inputs inputs.json --auto-confirm
+
+# Use as an MCP proxy for Claude Code / Codex
+aex proxy --upstream "your-mcp-server"
 ```
 
-When you run a contract, the runtime enforces the intersection of contract permissions and runtime policy:
+The runtime enforces the intersection of policy and task permissions:
 
 - tool calls outside the allowed set are blocked
-- confirmation gates halt execution until a confirmation handler approves them
+- confirmation gates halt execution until approved
 - call budgets stop execution when the limit is exceeded
-
-`aex run` accepts `--inputs` and `--policy` flags for JSON files and will prompt for confirmation gates unless you pass `--auto-confirm` during local experiments.
+- `aex proxy` gates every MCP tool call against your `.aex/policy.aex`
 
 `aex fmt` keeps contracts deterministic (use `--check` in CI), and `aex sign`/`aex verify` attach HMAC-backed provenance metadata for governance workflows.
 
 ## Works with
 
-- MCP
+- Claude Code (via `aex proxy`)
+- Codex CLI (via `aex proxy`)
+- MCP servers
 - OpenAI Agents SDK
 - LangGraph
 - GitHub Actions
-- AGENTS.md
 - VS Code (syntax highlighting + snippets)
 
 ## Status
 
-AEX is pre-release software (v0.0.1). All packages are published on npm under the `@aex-lang` scope. Expect API changes before v1.0.
+AEX is pre-release software (v0.0.3). All packages are published on npm under the `@aex-lang` scope. Expect API changes before v1.0.
 
 ## Documentation
 

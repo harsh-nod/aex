@@ -2,7 +2,7 @@
 
 ## Implemented in Repo
 
-> All `@aex-lang/*` packages are **published on npm** (v0.0.1). APIs are **not yet stable** — expect breaking changes before v1.0.
+> All `@aex-lang/*` packages are **published on npm** (v0.0.3). APIs are **not yet stable** — expect breaking changes before v1.0.
 
 1. **Runtime**
    - [x] Built-in checks (`patch touches only`, diff linting)
@@ -47,6 +47,18 @@
     - [x] `setup-aex` GitHub Action (`action/action.yml`)
     - [x] npm publish config (`publishConfig`, `exports`, `repository` on all packages)
     - [x] `scripts/prepublish.sh` rewrites `file:` deps to versioned refs
+11. **Policy files & merge semantics**
+    - [x] `policy workspace v0` keyword for ambient security boundaries
+    - [x] `aex init --policy` scaffolds `.aex/policy.aex`
+    - [x] Merge semantics: allow = intersection, deny = union, confirm = union, budget = min
+    - [x] `aex effective` previews merged permissions before running
+    - [x] Parser-level validation: policy files reject `need`, `do`, `make`, `check`, `return`
+12. **MCP proxy**
+    - [x] `aex proxy --upstream <cmd>` gates MCP tool calls against policy
+    - [x] Auto-discovers `.aex/policy.aex`
+    - [x] Budget enforcement, confirmation gates, allow/deny filtering
+    - [x] Structured JSON audit logging to stderr
+    - [x] `tools/list` response filtering
 
 ## Up Next
 

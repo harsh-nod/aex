@@ -44,6 +44,21 @@ return review
 
 ## Policy
 
+Use an `.aex` policy file for the ambient security boundary:
+
+```aex
+policy review v0
+
+goal "Read-only boundary for code review workflows."
+
+use git.diff, file.read
+deny file.write, network.*, secrets.read
+
+budget calls=20
+```
+
+Or the equivalent JSON policy:
+
 ```json
 {
   "allow": [

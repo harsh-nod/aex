@@ -53,6 +53,23 @@ return {
 
 ## Policy
 
+Use an `.aex` policy file for the ambient security boundary:
+
+```aex
+policy fix_test v0
+
+goal "Security boundary for fix-test workflows."
+
+use file.read, file.write, tests.run
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=20
+```
+
+Or the equivalent JSON policy:
+
 ```json
 {
   "allow": [
@@ -79,6 +96,14 @@ return {
 aex run examples/fix-test/task.aex \
   --inputs examples/fix-test/inputs.json \
   --policy examples/fix-test/policy.json \
+  --auto-confirm
+```
+
+Or with policy auto-discovery (place the `.aex` policy file in `.aex/policy.aex`):
+
+```bash
+aex run examples/fix-test/task.aex \
+  --inputs examples/fix-test/inputs.json \
   --auto-confirm
 ```
 

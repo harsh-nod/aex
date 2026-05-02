@@ -5,11 +5,11 @@ title: AEX Overview
 <div class="hero-intro">
   <h1>Prompts Are Not Permissions</h1>
   <p class="hero-tagline">
-    AEX captures an agent’s permissions, tests, confirmations, and provenance in one contract. Format it, sign it, run it, and compile it into LangGraph without rewriting your stack.
+    AEX defines <strong>policies</strong> (ambient security boundaries) and <strong>task contracts</strong> (per-task execution rules) in one readable format. The runtime enforces the most restrictive combination — prompt injection cannot bypass what the model never gets to call.
   </p>
   <div class="hero-actions">
     <a class="action primary" href="/aex/quickstart">Get Started</a>
-    <a class="action" href="/aex/quickstart#format-the-contract">Format a Contract</a>
+    <a class="action" href="/aex/language/overview#policy-files">Policy Files</a>
     <a class="action" href="https://github.com/harsh-nod/aex">View on GitHub</a>
   </div>
 </div>
@@ -83,22 +83,46 @@ AEX does not rely on the model to follow instructions. The runtime enforces `den
 
 ```bash
 npm install -g @aex-lang/cli
-aex init --task fix-test
-aex check tasks/fix-test.aex
-aex run tasks/fix-test.aex --inputs tasks/fix-test.inputs.json --policy tasks/fix-test.policy.json --auto-confirm
+aex init --policy                    # create .aex/policy.aex
+aex init --task fix-test             # create tasks/fix-test.aex
+aex check .aex/policy.aex           # validate the policy
+aex effective --contract tasks/fix-test.aex  # see merged permissions
 ```
 
-`aex init` scaffolds a starter contract, inputs, and policy so you can edit and run immediately.
+`aex init --policy` scaffolds a repo-wide security boundary. `aex init --task` scaffolds a task contract with inputs. Together they define what an agent may do.
 
-## Anatomy of an AEX Contract
+## Two File Types
+
+AEX has **policies** and **task contracts**. Policies define ambient guardrails; task contracts define specific execution steps.
+
+<div class="demo-grid">
+<div class="demo-panel">
+<h4>Policy (ambient boundary)</h4>
+
+```aex
+policy workspace v0
+
+goal "Default security boundary."
+
+use file.read, file.write, tests.run, git.*
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=100
+```
+
+</div>
+<div class="demo-panel">
+<h4>Task Contract (specific job)</h4>
 
 ```aex
 agent fix_test v0
 
-goal "Fix the failing test with the smallest safe change."
+goal "Fix the failing test."
 
 use file.read, file.write, tests.run
-deny network.*, secrets.read
+deny admin.*
 
 need test_cmd: str
 need target_files: list[file]
@@ -109,22 +133,19 @@ do file.read(paths=target_files) -> sources
 make patch: diff from failure, sources with:
   - fix the failing test
   - preserve public behavior
-  - do not touch unrelated files
 
-check patch is valid diff
-check patch has "Fix"
 check patch touches only target_files
 confirm before file.write
 
 do file.write(diff=patch) -> result
-do tests.run(cmd=test_cmd) -> final
 
-check final.passed
-return {
-  status: "fixed",
-  patch: patch
-}
+return { status: "fixed", patch: patch }
 ```
+
+</div>
+</div>
+
+When both are active, effective permissions are the most restrictive combination: allow is intersected, deny is unioned, and budget takes the minimum.
 
 ## Integrations
 
@@ -148,17 +169,16 @@ const result = await agent.run({
 ```
   </div>
   <div>
-    <h3><code>@aex-lang/mcp-gateway</code></h3>
-    <p>Enforce AEX contracts in front of MCP servers before forwarding tool calls.</p>
+    <h3><code>aex proxy</code> (MCP)</h3>
+    <p>Sit between Claude Code / Codex and upstream MCP servers, gating every tool call against your policy.</p>
 
-```ts
-import { AEXMCPGateway } from "@aex-lang/mcp-gateway";
+```bash
+# Auto-discovers .aex/policy.aex
+aex proxy --upstream "your-mcp-server"
 
-const gateway = new AEXMCPGateway("tasks/support-ticket.aex");
-
-if (!(await gateway.allows("email.send"))) {
-  throw new Error("Email sending is denied for this task.");
-}
+# With a task contract
+aex proxy --upstream "your-mcp-server" \
+  --contract tasks/fix-test.aex
 ```
   </div>
   <div>
@@ -176,10 +196,13 @@ langGraph.load(plan);
 
 ## What's New
 
+- **Policy files** — `policy workspace v0` defines ambient security boundaries for repos and sessions.
+- **MCP Proxy** — `aex proxy` sits between Claude Code / Codex and upstream MCP servers, enforcing policy on every tool call.
+- **`aex effective`** — preview merged permissions before running anything.
+- **`aex init --policy`** — scaffold a `.aex/policy.aex` in one command.
+- **Merge semantics** — allow is intersected, deny is unioned, budget takes the minimum.
 - Built-in diff-aware checks, structured `file.write`, and git helpers in the local runtime.
 - `@aex-lang/langgraph` compiler so contracts can power LangGraph workflows immediately.
-- `aex fmt`, richer CLI diagnostics, and a companion VS Code extension.
-- `aex sign` / `aex verify` provenance metadata plus a security-focused threat-monitor example.
 
 Track ongoing work in the [Roadmap](community/roadmap).
 

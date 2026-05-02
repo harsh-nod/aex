@@ -18,7 +18,19 @@ npx @aex-lang/cli check tasks/fix-test.aex
 
 ## `aex init`
 
-Scaffold a starter contract, inputs, and policy files.
+Scaffold policies and task contracts.
+
+### `aex init --policy`
+
+Create a `.aex/policy.aex` file with a starter security boundary:
+
+```bash
+aex init --policy
+```
+
+### `aex init --task`
+
+Scaffold a starter task contract, inputs, and policy files:
 
 ```bash
 aex init --task fix-test
@@ -109,6 +121,70 @@ aex run task.aex --log-json
 # Export traces to an OpenTelemetry collector
 aex run task.aex --otlp-endpoint http://localhost:4318/v1/traces
 ```
+
+## `aex effective`
+
+Preview the merged permissions when a policy and task contract are combined.
+
+```bash
+# Policy only
+aex effective
+
+# Policy + task contract
+aex effective --contract tasks/fix-test.aex
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--contract <file>` | Path to a task contract to merge with the policy |
+| `--policy <file>` | Explicit path to a policy file (otherwise auto-discovered) |
+
+### Output
+
+```
+Policy:   .aex/policy.aex
+Contract: tasks/fix-test.aex
+
+Allowed:
+  file.read
+  file.write
+  tests.run
+
+Denied:
+  network.*
+  secrets.read
+
+Confirmation required:
+  file.write
+
+Budget:
+  calls=20
+```
+
+The allow list is the intersection (only tools both policy and task agree on), deny is the union (everything either blocks), and budget is the minimum.
+
+## `aex proxy`
+
+Start an MCP stdio proxy that gates every tool call against your policy.
+
+```bash
+aex proxy --upstream "your-mcp-server"
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--upstream <cmd>` | Command to spawn the upstream MCP server |
+| `--contract <file>` | Optional task contract for additional constraints |
+| `--policy <file>` | Explicit policy file (otherwise auto-discovered) |
+| `--auto-confirm` | Automatically approve confirmation gates |
+
+The proxy auto-discovers `.aex/policy.aex` in the working directory. It sits between your MCP client (Claude Code, Codex CLI) and the upstream server, enforcing allow/deny rules, confirmation gates, and budgets on every `tools/call` request.
+
+See the [Claude Code](/integrations/claude-code) and [Codex](/integrations/codex) integration guides for full setup.
 
 ## `aex sign` and `aex verify`
 

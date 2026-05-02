@@ -16,6 +16,31 @@ npx @aex-lang/cli check tasks/fix-test.aex
 
 After a global install, the `aex` command is available on your PATH.
 
+## Create a Policy
+
+Every repo starts with a policy — the ambient security boundary:
+
+```bash
+aex init --policy
+```
+
+This creates `.aex/policy.aex`:
+
+```aex
+policy workspace v0
+
+goal "Default security boundary for this repository."
+
+use file.read, file.write, tests.run, git.*
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=100
+```
+
+Edit it to match your repo's needs. Policies define what tools are available, which are denied, and which require human approval.
+
 ## Create a Task
 
 Create `tasks/fix-test.aex`:
@@ -63,6 +88,38 @@ aex init --task fix-test
 ```
 
 This generates a starter contract plus matching inputs and policy files under `tasks/`.
+
+## Preview Effective Permissions
+
+See the merged permissions when policy and task are combined:
+
+```bash
+aex effective --contract tasks/fix-test.aex
+```
+
+Output:
+
+```
+Policy:   .aex/policy.aex
+Contract: tasks/fix-test.aex
+
+Allowed:
+  file.read
+  file.write
+  tests.run
+
+Denied:
+  network.*
+  secrets.read
+
+Confirmation required:
+  file.write
+
+Budget:
+  calls=20
+```
+
+The allow list is the intersection (only tools both policy and task agree on), deny is the union (everything either blocks), and budget is the minimum.
 
 ## Compile to JSON IR
 
@@ -117,6 +174,16 @@ The runtime logs every tool call and check to stdout:
 {"event":"check.passed","condition":"final.passed"}
 {"event":"run.finished","status":"success"}
 ```
+
+## Use as an MCP Proxy
+
+If you use Claude Code or Codex CLI, `aex proxy` sits between your client and upstream MCP servers, gating every tool call against your policy:
+
+```bash
+aex proxy --upstream "your-mcp-server" --auto-confirm
+```
+
+The proxy auto-discovers `.aex/policy.aex`. See the [Claude Code](/integrations/claude-code) and [Codex](/integrations/codex) integration guides for full setup.
 
 ## How `make` Works
 

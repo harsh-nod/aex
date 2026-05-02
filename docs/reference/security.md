@@ -4,9 +4,11 @@ AEX contracts act as an enforceable layer between intent and tool execution. The
 
 - Contracts are parsed and validated before execution.
 - Tool calls must appear in `use`, be absent from `deny`, and pass the runtime policy intersection.
+- When both a policy and task contract are active, effective permissions use the most restrictive combination: allow is intersected, deny is unioned, confirm is unioned, budget takes the minimum.
 - Confirmation gates pause execution until an approval handler allows the call.
 - Budgets stop execution when the permitted number of `do`/`make` steps is exhausted.
 - All tool calls, confirmations, checks, and return values are logged.
+- The MCP proxy (`aex proxy`) enforces the same rules on every tool call between your client and upstream servers.
 
 ## Runtime Protections
 
@@ -35,11 +37,12 @@ The `aex verify` command uses `crypto.timingSafeEqual` to compare HMAC signature
 AEX is designed to mitigate:
 
 - prompt-injection attempts that ask an agent to read secrets or call undeclared tools
-- exfiltration via overbroad tool permissions
+- exfiltration via overbroad tool permissions (blocked by `deny` rules enforced before any tool executes)
 - silent edits that skip tests or checks
 - tool calls that should require human approval (e.g., `file.write`, `ticket.create`)
 - path traversal attacks through user-controlled file paths
 - command injection through crafted test commands
+- permission escalation when a task contract requests broader access than the ambient policy allows (merge semantics enforce the intersection)
 
 What AEX does **not** guarantee:
 
@@ -73,8 +76,21 @@ The reference implementation includes tests that ensure the CLI, runtime, and La
 - Cross-runtime verification that `taskToLangGraph` produces the same step count as the validated task.
 - Timing-safe signature verification and tamper detection.
 
+## MCP Proxy Security
+
+The `aex proxy` command enforces policy on MCP tool calls at the transport layer — between your client (Claude Code, Codex CLI) and upstream MCP servers. This provides defense-in-depth because:
+
+- **Deny rules are enforced before the upstream server sees the request.** A prompt injection that convinces the model to call a denied tool is blocked at the proxy, not at the model.
+- **Budget enforcement** stops execution after the configured number of calls, preventing runaway agents.
+- **Audit logging** records every decision (allowed, denied, confirmed) as structured JSON to stderr.
+
+```bash
+aex proxy --upstream "your-mcp-server" --policy .aex/policy.aex
+```
+
 ## Resources
 
+- [Policy Reference](/reference/policy) — `.aex` policy file format and merge semantics
 - [Policy schema](https://github.com/harsh-nod/aex/blob/main/schemas/policy.schema.json)
 - [JSON IR schema](https://github.com/harsh-nod/aex/blob/main/schemas/aex-ir.schema.json)
 - Runtime audit logs emitted by `aex run` (`--logger` integrations can stream them elsewhere).

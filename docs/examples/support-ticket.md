@@ -42,6 +42,23 @@ return draft
 
 ## Policy
 
+Use an `.aex` policy file for the ambient security boundary:
+
+```aex
+policy support v0
+
+goal "CRM access boundary for support workflows."
+
+use crm.lookup, ticket.read, email.draft
+deny email.send, payment.*, admin.*, secrets.read
+
+confirm before email.draft
+
+budget calls=30
+```
+
+Or the equivalent JSON policy:
+
 ```json
 {
   "allow": [

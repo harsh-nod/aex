@@ -253,7 +253,7 @@ export function createStructuredLogger(
             },
             scopeSpans: [
               {
-                scope: { name: "@aex-lang/runtime", version: "0.0.2" },
+                scope: { name: "@aex-lang/runtime", version: "0.0.3" },
                 spans,
               },
             ],

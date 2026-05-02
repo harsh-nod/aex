@@ -1,6 +1,6 @@
 {
   "name": "@aex-lang/mcp-gateway",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "MCP gateway utilities for enforcing AEX contracts",
   "license": "MIT",
   "repository": {

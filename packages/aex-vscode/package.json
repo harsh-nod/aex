@@ -2,7 +2,7 @@
   "name": "aex-vscode",
   "displayName": "AEX Contracts",
   "description": "Syntax highlighting and snippets for AEX task contracts.",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "publisher": "aex",
   "engines": {
     "vscode": "^1.85.0"

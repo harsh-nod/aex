@@ -1,0 +1,2 @@
+# Treat AEX contract files as text for diffing and merging
+*.aex text linguist-language=AEX

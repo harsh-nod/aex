@@ -10,6 +10,18 @@
       "include": "#keywords"
     },
     {
+      "include": "#check-operators"
+    },
+    {
+      "include": "#arrow"
+    },
+    {
+      "include": "#tool-call"
+    },
+    {
+      "include": "#type-annotation"
+    },
+    {
       "name": "string.quoted.double.aex",
       "begin": "\"",
       "end": "\"",
@@ -23,6 +35,10 @@
     {
       "name": "constant.numeric.aex",
       "match": "\\b-?[0-9]+(?:\\.[0-9]+)?\\b"
+    },
+    {
+      "name": "constant.language.boolean.aex",
+      "match": "\\b(true|false)\\b"
     },
     {
       "name": "variable.parameter.aex",
@@ -43,6 +59,38 @@
         {
           "name": "keyword.control.aex",
           "match": "\\b(agent|goal|use|deny|need|budget|do|make|check|confirm|return)\\b"
+        }
+      ]
+    },
+    "check-operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.aex",
+          "match": "\\b(has|is valid diff|touches only|does not include|has citations|before)\\b"
+        }
+      ]
+    },
+    "arrow": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.aex",
+          "match": "->"
+        }
+      ]
+    },
+    "tool-call": {
+      "patterns": [
+        {
+          "name": "entity.name.function.aex",
+          "match": "\\b[a-z][a-z0-9]*\\.[a-z][a-z0-9]*\\b"
+        }
+      ]
+    },
+    "type-annotation": {
+      "patterns": [
+        {
+          "name": "support.type.aex",
+          "match": ":\\s*(str|int|float|bool|object|list\\[[^\\]]*\\])"
         }
       ]
     }

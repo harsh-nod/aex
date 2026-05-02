@@ -8,8 +8,8 @@ title: AEX Overview
     AEX captures an agent’s permissions, tests, confirmations, and provenance in one contract. Format it, sign it, run it, and compile it into LangGraph without rewriting your stack.
   </p>
   <div class="hero-actions">
-    <a class="action primary" href="/quickstart">Get Started</a>
-    <a class="action" href="/quickstart#format-the-contract">Format a Contract</a>
+    <a class="action primary" href="/aex/quickstart">Get Started</a>
+    <a class="action" href="/aex/quickstart#format-the-contract">Format a Contract</a>
     <a class="action" href="https://github.com/harsh-nod/aex">View on GitHub</a>
   </div>
 </div>

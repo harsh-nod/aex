@@ -1,5 +1,17 @@
 import { defineConfig } from "vitepress";
 import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
+
+const aexGrammar = {
+  ...JSON.parse(
+    readFileSync(
+      resolve(__dirname, "../../packages/aex-vscode/syntaxes/aex.tmLanguage.json"),
+      "utf8"
+    )
+  ),
+  name: "aex",
+  aliases: ["AEX"],
+};
 
 export default defineConfig({
   srcDir: resolve(__dirname, "../../docs"),
@@ -8,6 +20,9 @@ export default defineConfig({
   description: "Executable contracts for AI agents.",
   lang: "en-US",
   appearance: true,
+  markdown: {
+    languages: [aexGrammar],
+  },
   themeConfig: {
     logo: {
       text: "AEX"

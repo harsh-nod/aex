@@ -35,6 +35,7 @@
     "test": "vitest run --dir test"
   },
   "dependencies": {
+    "@aex-lang/mcp-gateway": "file:../aex-mcp-gateway",
     "@aex-lang/parser": "file:../aex-parser",
     "@aex-lang/runtime": "file:../aex-runtime",
     "@aex-lang/validator": "file:../aex-validator",

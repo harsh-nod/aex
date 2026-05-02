@@ -10,10 +10,16 @@ import {
   resolvePolicy,
   createStructuredLogger,
   exportToOTLP,
+  mergePolicyAndTask,
+  extractPolicyLayer,
+  discoverPolicy,
+  EffectivePermissions,
 } from "@aex-lang/runtime";
+import { AEXProxy } from "@aex-lang/mcp-gateway";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { spawn } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import irSchema from "../../../schemas/aex-ir.schema.json" with { type: "json" };
 import policySchema from "../../../schemas/policy.schema.json" with { type: "json" };
@@ -47,8 +53,20 @@ program
 program
   .command("init")
   .option("--task <name>", "Task name", "sample-task")
+  .option("--policy", "Scaffold a .aex/policy.aex ambient policy file")
   .description("Scaffold a starter AEX contract with inputs and policy files")
-  .action(async (options: { task?: string }) => {
+  .action(async (options: { task?: string; policy?: boolean }) => {
+    if (options.policy) {
+      const aexDir = resolveInput(".aex");
+      await fs.mkdir(aexDir, { recursive: true });
+      const policyPath = path.join(aexDir, "policy.aex");
+      await writeIfMissing(policyPath, SAMPLE_POLICY_AEX);
+      process.stdout.write(
+        `${c.green("✔")} Policy created at ${path.relative(process.cwd(), policyPath)}\n`,
+      );
+      return;
+    }
+
     const taskName = (options.task ?? "sample-task").replace(
       /[^A-Za-z0-9_-]/g,
       "_",
@@ -282,6 +300,109 @@ program
   );
 
 program
+  .command("effective")
+  .option("--contract <file>", "Path to a task contract .aex file")
+  .option("--policy <file>", "Path to a policy .aex file (auto-discovers if omitted)")
+  .description("Show effective permissions after merging policy and task contract")
+  .action(
+    async (options: { contract?: string; policy?: string }) => {
+      try {
+        const policyPath = options.policy
+          ? resolveInput(options.policy)
+          : await discoverPolicy();
+
+        if (!policyPath) {
+          process.stderr.write(
+            `${c.yellow("warn")} No policy found. Looked for .aex/policy.aex and aex.policy.aex\n`,
+          );
+          if (!options.contract) {
+            process.exitCode = 1;
+            return;
+          }
+        }
+
+        let policyLayer;
+        if (policyPath) {
+          const policyParsed = await parseFile(policyPath, { tolerant: true });
+          if (policyParsed.diagnostics.length > 0) {
+            printDiagnostics(policyParsed.diagnostics);
+          }
+          policyLayer = extractPolicyLayer(policyParsed.task);
+        }
+
+        let taskLayer;
+        let contractPath: string | undefined;
+        if (options.contract) {
+          contractPath = resolveInput(options.contract);
+          const taskParsed = await parseFile(contractPath, { tolerant: true });
+          if (taskParsed.diagnostics.length > 0) {
+            printDiagnostics(taskParsed.diagnostics);
+          }
+          taskLayer = extractPolicyLayer(taskParsed.task);
+        }
+
+        if (!policyLayer && !taskLayer) {
+          process.stderr.write(
+            `${c.red("error")} No policy or contract to analyze.\n`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+
+        const effective = policyLayer
+          ? mergePolicyAndTask(policyLayer, taskLayer)
+          : mergePolicyAndTask(taskLayer!);
+
+        // Print header
+        if (policyPath) {
+          process.stdout.write(
+            `${c.cyan("Policy:")}   ${path.relative(process.cwd(), policyPath)}\n`,
+          );
+        }
+        if (contractPath) {
+          process.stdout.write(
+            `${c.cyan("Contract:")} ${path.relative(process.cwd(), contractPath)}\n`,
+          );
+        }
+        process.stdout.write("\n");
+
+        // Print effective permissions
+        if (effective.allow.length > 0) {
+          process.stdout.write(`${c.green("Allowed:")}\n`);
+          for (const tool of effective.allow) {
+            process.stdout.write(`  ${tool}\n`);
+          }
+          process.stdout.write("\n");
+        }
+
+        if (effective.deny.length > 0) {
+          process.stdout.write(`${c.red("Denied:")}\n`);
+          for (const tool of effective.deny) {
+            process.stdout.write(`  ${tool}\n`);
+          }
+          process.stdout.write("\n");
+        }
+
+        if (effective.confirm.length > 0) {
+          process.stdout.write(`${c.yellow("Confirmation required:")}\n`);
+          for (const tool of effective.confirm) {
+            process.stdout.write(`  ${tool}\n`);
+          }
+          process.stdout.write("\n");
+        }
+
+        if (effective.budget !== undefined) {
+          process.stdout.write(`${c.cyan("Budget:")}\n`);
+          process.stdout.write(`  calls=${effective.budget}\n`);
+          process.stdout.write("\n");
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
+
+program
   .command("run")
   .argument("<file>", "AEX file to execute")
   .option("--policy <policy>", "Path to a runtime policy JSON file")
@@ -367,6 +488,98 @@ program
             );
           }
         }
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
+
+program
+  .command("proxy")
+  .requiredOption("--upstream <cmd>", "Command to spawn as the upstream MCP server")
+  .option("--contract <file>", "Path to a task contract .aex file")
+  .option("--policy <file>", "Path to a policy .aex file (auto-discovers if omitted)")
+  .option("--auto-confirm", "Automatically approve confirmation gates")
+  .description("Start an MCP stdio proxy that enforces AEX policy on every tool call")
+  .action(
+    async (options: {
+      upstream: string;
+      contract?: string;
+      policy?: string;
+      autoConfirm?: boolean;
+    }) => {
+      try {
+        const policyPath = options.policy
+          ? resolveInput(options.policy)
+          : await discoverPolicy();
+
+        if (!policyPath) {
+          process.stderr.write(
+            `${c.red("error")} No policy found. Use --policy or create .aex/policy.aex\n`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+
+        const policyParsed = await parseFile(policyPath, { tolerant: true });
+        const policyLayer = extractPolicyLayer(policyParsed.task);
+
+        let taskLayer;
+        if (options.contract) {
+          const taskParsed = await parseFile(resolveInput(options.contract), { tolerant: true });
+          taskLayer = extractPolicyLayer(taskParsed.task);
+        }
+
+        const effective = mergePolicyAndTask(policyLayer, taskLayer);
+
+        // Log effective permissions to stderr
+        process.stderr.write(
+          `${c.cyan("proxy")} Policy: ${path.relative(process.cwd(), policyPath)}\n`,
+        );
+        if (options.contract) {
+          process.stderr.write(
+            `${c.cyan("proxy")} Contract: ${options.contract}\n`,
+          );
+        }
+        process.stderr.write(
+          `${c.cyan("proxy")} Allow: ${effective.allow.join(", ") || "(none)"}\n`,
+        );
+        process.stderr.write(
+          `${c.cyan("proxy")} Deny: ${effective.deny.join(", ") || "(none)"}\n`,
+        );
+        if (effective.budget !== undefined) {
+          process.stderr.write(
+            `${c.cyan("proxy")} Budget: ${effective.budget} calls\n`,
+          );
+        }
+
+        // Spawn upstream
+        const parts = options.upstream.split(/\s+/).filter(Boolean);
+        const child = spawn(parts[0], parts.slice(1), {
+          stdio: ["pipe", "pipe", "inherit"],
+        });
+
+        const logger = (event: { event: string; data?: Record<string, unknown> }) => {
+          process.stderr.write(
+            JSON.stringify({ ...event, timestamp: new Date().toISOString() }) + "\n",
+          );
+        };
+
+        const proxy = new AEXProxy({
+          permissions: effective,
+          autoConfirm: options.autoConfirm,
+          logger,
+        });
+
+        process.stderr.write(
+          `${c.green("proxy")} Started. Proxying stdin/stdout to upstream.\n`,
+        );
+
+        await proxy.start(process.stdin, process.stdout, child);
+
+        process.stderr.write(
+          `${c.yellow("proxy")} Upstream exited. ${proxy.callCount} calls made.\n`,
+        );
       } catch (error) {
         handleError(error);
       }
@@ -599,3 +812,15 @@ const SAMPLE_POLICY = {
     calls: 20
   }
 };
+
+const SAMPLE_POLICY_AEX = `policy workspace v0
+
+goal "Default security boundary for this repository."
+
+use file.read, file.write, tests.run, git.*
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=100
+`;

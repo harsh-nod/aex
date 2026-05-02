@@ -1,41 +1,111 @@
 # Claude Code
 
-AEX contracts pair with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to declare what a task is allowed to do. You can validate contracts statically with `aex check`, run full enforcement via `aex run`, or wire either into Claude Code hooks as a pre-flight gate.
+AEX provides two ways to enforce contracts with [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 
-## How It Works
+1. **MCP Proxy** (recommended) — `aex proxy` sits between Claude Code and upstream MCP servers, gating every tool call against your policy
+2. **Hooks** — `aex check` runs as a pre-flight validation hook
 
-Claude Code supports **hooks** — shell commands that run before or after tool calls. You can wire `aex check` into a hook to validate that a contract is well-formed before each tool call. For full runtime enforcement (tool blocking, budget limits, confirmation gates), use `aex run` separately.
+## MCP Proxy Setup
 
-## Setup
+The proxy intercepts every tool call, enforces allow/deny lists, budgets, and confirmation gates, and emits structured audit logs.
 
-### 1. Create a contract
+### 1. Create a policy
 
-```aex
-agent code_review v0
-
-goal "Review code changes without modifying files."
-
-use git.diff, git.status, file.read
-deny file.write, network.*, secrets.read
-
-need repo_path: str
-
-do git.diff() -> changes
-do git.status() -> status
-
-make review: markdown from changes, status with:
-  - summarize what changed
-  - flag potential issues
-  - do not suggest rewrites longer than 10 lines
-
-check review has "Summary"
-
-return review
+```bash
+aex init --policy
 ```
 
-### 2. Add a validation hook
+This scaffolds `.aex/policy.aex`:
 
-In your `.claude/settings.json`:
+```aex
+policy workspace v0
+
+goal "Default security boundary for this repository."
+
+use file.read, file.write, tests.run, git.*
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=100
+```
+
+### 2. Preview effective permissions
+
+```bash
+aex effective
+```
+
+Output:
+
+```
+Policy:   .aex/policy.aex
+
+Allowed:
+  file.read
+  file.write
+  tests.run
+  git.*
+
+Denied:
+  network.*
+  secrets.read
+
+Confirmation required:
+  file.write
+
+Budget:
+  calls=100
+```
+
+To see how a task contract narrows the policy:
+
+```bash
+aex effective --contract tasks/fix-test.aex
+```
+
+### 3. Configure Claude Code to use the proxy
+
+In your `.claude/settings.json`, point your MCP server through `aex proxy`:
+
+```json
+{
+  "mcpServers": {
+    "tools": {
+      "command": "aex",
+      "args": ["proxy", "--upstream", "your-mcp-server", "--auto-confirm"]
+    }
+  }
+}
+```
+
+The proxy auto-discovers `.aex/policy.aex`. To also apply a task contract:
+
+```json
+{
+  "mcpServers": {
+    "tools": {
+      "command": "aex",
+      "args": [
+        "proxy",
+        "--upstream", "your-mcp-server",
+        "--contract", "tasks/fix-test.aex"
+      ]
+    }
+  }
+}
+```
+
+### What the proxy does
+
+- **Filters `tools/list`** — removes tools not in the allow list or in the deny list
+- **Gates `tools/call`** — blocks denied tools, unapproved tools, and budget-exceeded calls
+- **Enforces confirmation** — blocks tools requiring confirmation (pass `--auto-confirm` to bypass)
+- **Emits audit logs** — every decision is logged as structured JSON to stderr
+
+## Hooks (Static Validation)
+
+For lighter-weight validation without proxying, use `aex check` as a Claude Code hook:
 
 ```json
 {
@@ -46,7 +116,7 @@ In your `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "aex check tasks/code-review.aex"
+            "command": "aex check .aex/policy.aex"
           }
         ]
       }
@@ -55,44 +125,21 @@ In your `.claude/settings.json`:
 }
 ```
 
-This runs `aex check` before every tool call, validating that the contract is well-formed. Note: `aex check` performs static validation (syntax, semantics, permission consistency) — it does not intercept or block Claude Code's own tool calls at runtime.
-
-### 3. Run with policy enforcement
-
-For full runtime enforcement with budget limits and confirmation gates:
-
-```bash
-aex run tasks/code-review.aex \
-  --inputs tasks/code-review.inputs.json \
-  --policy tasks/code-review.policy.json \
-  --log-json
-```
+Note: `aex check` performs static validation only — it does not intercept or block tool calls at runtime. Use the MCP proxy for runtime enforcement.
 
 ## Pairing with CLAUDE.md
 
-`CLAUDE.md` provides natural-language guidance that Claude follows voluntarily. AEX contracts declare permissions in a structured DSL that `aex run` enforces deterministically.
-
-| Aspect | CLAUDE.md | AEX Contract |
-|--------|-----------|--------------|
+| Aspect | CLAUDE.md | AEX Policy |
+|--------|-----------|------------|
 | Format | Free-form markdown | Structured DSL |
-| Enforcement | Best-effort (model follows instructions) | Deterministic when run via `aex run` |
-| Scope | Session-wide guidance | Per-task permissions |
-| Audit | No built-in logging | Every step logged as structured JSON |
+| Enforcement | Best-effort (model follows instructions) | Deterministic via `aex proxy` |
+| Scope | Session-wide guidance | Session-wide (policy) or per-task (contract) |
+| Audit | No built-in logging | Every tool call logged as structured JSON |
 
-Use both together: `CLAUDE.md` for project-wide conventions, AEX for declaring and enforcing task-level permissions via `aex run`.
-
-## Structured Logging
-
-Pass `--log-json` or `--otlp-endpoint` to get machine-readable audit trails:
-
-```bash
-aex run tasks/review.aex --log-json 2>audit.json
-```
-
-The JSON output includes traceId and spanId fields compatible with OpenTelemetry collectors.
+Use both together: `CLAUDE.md` for project-wide conventions, AEX policy for enforcing permission boundaries.
 
 ## See Also
 
-- [AGENTS.md Integration](/integrations/agents-md) — how AGENTS.md and AEX complement each other
+- [Language Overview](/language/overview) — AEX policy and task syntax
+- [Codex Integration](/integrations/codex) — same proxy approach for OpenAI Codex CLI
 - [CLI Reference](/reference/cli) — full list of CLI flags
-- [Policy Reference](/reference/policy) — runtime policy enforcement rules

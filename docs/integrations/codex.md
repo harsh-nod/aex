@@ -1,65 +1,79 @@
 # Codex CLI
 
-AEX contracts pair with [OpenAI Codex CLI](https://github.com/openai/codex) to declare what a task is allowed to do. Use `aex check` for static validation before a Codex run, and `aex run` for full runtime enforcement with tool blocking, budgets, and confirmation gates.
+AEX provides two ways to enforce contracts with [OpenAI Codex CLI](https://github.com/openai/codex):
 
-## How It Works
+1. **MCP Proxy** (recommended) — `aex proxy` sits between Codex and upstream MCP servers, gating every tool call against your policy
+2. **Static validation** — `aex check` validates contracts before a Codex run
 
-Codex CLI runs agents that can read files, write code, and execute commands. AEX contracts declare what each task is allowed to do. You validate contracts before the agent runs with `aex check`, and use `aex run` when you want the AEX runtime to enforce permissions directly.
+## MCP Proxy Setup
 
-## Setup
+### 1. Create a policy
 
-### 1. Create a contract
-
-```aex
-agent fix_bug v0
-
-goal "Fix the bug described in the issue."
-
-use file.read, file.write, tests.run
-deny network.*, secrets.read
-
-need issue_description: str
-need target_files: list[file]
-
-do file.read(paths=target_files) -> sources
-do tests.run(cmd="npm test") -> baseline
-
-make patch: diff from sources, baseline, issue_description with:
-  - fix the described bug
-  - do not change unrelated code
-  - keep the patch minimal
-
-check patch is valid diff
-check patch touches only target_files
-confirm before file.write
-
-do file.write(diff=patch) -> result
-do tests.run(cmd="npm test") -> final
-
-check final.passed
-
-return {
-  status: "fixed",
-  patch: patch,
-  test: final
-}
+```bash
+aex init --policy
 ```
 
-### 2. Validate before running
+This scaffolds `.aex/policy.aex`:
 
-Add a pre-flight check to your workflow:
+```aex
+policy workspace v0
+
+goal "Default security boundary for this repository."
+
+use file.read, file.write, tests.run, git.*
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=100
+```
+
+### 2. Preview effective permissions
+
+```bash
+aex effective
+```
+
+To see how a task contract narrows the policy:
+
+```bash
+aex effective --contract tasks/fix-bug.aex
+```
+
+### 3. Run with the proxy
+
+Start the proxy between Codex and your MCP server:
+
+```bash
+aex proxy --upstream "your-mcp-server" --auto-confirm
+```
+
+The proxy auto-discovers `.aex/policy.aex`. To also apply a task contract:
+
+```bash
+aex proxy --upstream "your-mcp-server" --contract tasks/fix-bug.aex
+```
+
+### What the proxy does
+
+- **Filters `tools/list`** — removes tools not in the allow list or in the deny list
+- **Gates `tools/call`** — blocks denied tools, unapproved tools, and budget-exceeded calls
+- **Enforces confirmation** — blocks tools requiring confirmation (pass `--auto-confirm` to bypass)
+- **Emits audit logs** — every decision is logged as structured JSON to stderr
+
+## Static Validation
+
+Validate contracts before running:
 
 ```bash
 # Validate contract syntax and semantics
 aex check tasks/fix-bug.aex
 
-# Run with full enforcement
-aex run tasks/fix-bug.aex \
-  --inputs tasks/fix-bug.inputs.json \
-  --policy tasks/fix-bug.policy.json
+# Validate policy file
+aex check .aex/policy.aex
 ```
 
-### 3. Use in CI
+### CI Integration
 
 Validate contracts on every push to catch permission drift:
 
@@ -67,35 +81,31 @@ Validate contracts on every push to catch permission drift:
 - name: Validate AEX contracts
   run: |
     npx @aex-lang/cli check tasks/*.aex
+    npx @aex-lang/cli check .aex/policy.aex
     npx @aex-lang/cli fmt tasks/*.aex --check
 ```
 
-## Policy Layering
+## Merge Semantics
 
-Codex sessions can combine a base policy (org-wide defaults) with task-specific overrides using policy inheritance:
+When a policy and task contract are both active, effective permissions are the most restrictive combination:
 
-```json
-{
-  "extends": "./policies/org-baseline.json",
-  "allow": ["file.write:/src/**"],
-  "budget": { "calls": 10 }
-}
-```
-
-The `extends` field loads the base policy and merges permissions. Budget takes the minimum across all layers.
+- **Allow** = policy allow &cap; task use (intersection)
+- **Deny** = policy deny &cup; task deny (union)
+- **Confirm** = policy confirm &cup; task confirm (union)
+- **Budget** = min(policy budget, task budget)
 
 ## Audit Trail
 
-Every `aex run` produces structured log events:
+The proxy emits structured JSON to stderr for every decision. Each event includes timestamps for correlation:
 
 ```bash
-aex run tasks/fix-bug.aex --log-json > audit.json
+aex proxy --upstream "your-mcp-server" 2>audit.json
 ```
 
-Each event includes timestamps, trace IDs, and span IDs for correlation with OpenTelemetry collectors.
+For `aex run`, pass `--log-json` or `--otlp-endpoint` for structured logs with OpenTelemetry-compatible trace IDs.
 
 ## See Also
 
-- [OpenAI Agents SDK](/integrations/openai-agents) — programmatic adapter for OpenAI agents
+- [Language Overview](/language/overview) — AEX policy and task syntax
+- [Claude Code Integration](/integrations/claude-code) — same proxy approach for Claude Code
 - [CLI Reference](/reference/cli) — full list of CLI flags
-- [Policy Reference](/reference/policy) — runtime policy enforcement rules

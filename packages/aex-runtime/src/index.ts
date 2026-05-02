@@ -80,6 +80,77 @@ export async function resolvePolicy(
   return composePolicies(base, ownFields);
 }
 
+export interface EffectivePermissions {
+  allow: string[];
+  deny: string[];
+  confirm: string[];
+  budget?: number;
+}
+
+export interface PolicyLayer {
+  use: string[];
+  deny: string[];
+  confirm: string[];
+  budget?: number;
+}
+
+export function mergePolicyAndTask(
+  policy: PolicyLayer,
+  task?: PolicyLayer,
+): EffectivePermissions {
+  if (!task) {
+    return {
+      allow: [...policy.use],
+      deny: [...policy.deny],
+      confirm: [...policy.confirm],
+      budget: policy.budget,
+    };
+  }
+  // effective allow = policy allow ∩ task use
+  const allow = task.use.filter((tool) => matchesAny(tool, policy.use));
+  // effective deny = policy deny ∪ task deny
+  const deny = [...new Set([...policy.deny, ...task.deny])];
+  // effective confirm = policy confirm ∪ task confirm
+  const confirm = [...new Set([...policy.confirm, ...task.confirm])];
+  // effective budget = min(policy budget, task budget)
+  let budget: number | undefined;
+  if (policy.budget !== undefined && task.budget !== undefined) {
+    budget = Math.min(policy.budget, task.budget);
+  } else {
+    budget = policy.budget ?? task.budget;
+  }
+  return { allow, deny, confirm, budget };
+}
+
+export function extractPolicyLayer(task: import("@aex-lang/parser").AEXTask): PolicyLayer {
+  const confirmTools = task.steps
+    .filter((s): s is import("@aex-lang/parser").AEXConfirmStep => s.kind === "confirm")
+    .map((s) => s.before);
+  return {
+    use: [...task.use],
+    deny: [...task.deny],
+    confirm: confirmTools,
+    budget: task.budget?.calls,
+  };
+}
+
+export async function discoverPolicy(cwd?: string): Promise<string | null> {
+  const dir = cwd ?? process.cwd();
+  const candidates = [
+    path.join(dir, ".aex", "policy.aex"),
+    path.join(dir, "aex.policy.aex"),
+  ];
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // not found, try next
+    }
+  }
+  return null;
+}
+
 export interface RuntimeEvent {
   event: string;
   data?: Record<string, unknown>;

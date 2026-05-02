@@ -128,3 +128,51 @@ return {
 ```
 
 The runtime serializes this structure into JSON for downstream consumers.
+
+## Policy Files
+
+AEX also supports **policy files** — ambient authority boundaries that apply across an entire session rather than a single task. Policy files use the `policy` keyword instead of `agent` and define `use`/`deny`/`confirm`/`budget` constraints without any execution steps.
+
+```aex
+policy workspace v0
+
+goal "Default security boundary for this repository."
+
+use file.read, file.write, tests.run, git.*
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=100
+```
+
+### Policy vs Task
+
+| | Policy | Task |
+|---|---|---|
+| Header | `policy name v0` | `agent name v0` |
+| Purpose | Ambient guardrails for a session | Specific task execution |
+| Allowed keywords | `use`, `deny`, `confirm before`, `budget`, `goal` | All keywords |
+| Forbidden keywords | `need`, `do`, `make`, `check`, `return`, `if`, `for` | None |
+
+### Merge Semantics
+
+When a policy and task contract are both active, the effective permissions are the most restrictive combination:
+
+- **Allow** = policy allow &cap; task use (intersection)
+- **Deny** = policy deny &cup; task deny (union)
+- **Confirm** = policy confirm &cup; task confirm (union)
+- **Budget** = min(policy budget, task budget)
+
+### Directory Convention
+
+```
+repo/
+  .aex/
+    policy.aex          # ambient authority boundary
+  tasks/
+    fix-test.aex        # task contract
+    review-pr.aex
+```
+
+The CLI auto-discovers `.aex/policy.aex` or `aex.policy.aex` in the current directory. Use `aex init --policy` to scaffold one.

@@ -31,7 +31,8 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@aex-lang/parser": "file:../aex-parser"
+    "@aex-lang/parser": "file:../aex-parser",
+    "@aex-lang/runtime": "file:../aex-runtime"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

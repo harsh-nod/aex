@@ -174,6 +174,141 @@ do file.read(paths="README.md") -> content
   });
 });
 
+describe("policy validation", () => {
+  it("passes a valid policy file", () => {
+    const policy = `policy workspace v0
+
+goal "Default security boundary for this repo."
+
+use file.read, file.write, tests.run, git.*
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=100
+`;
+    const parsed = parseAEX(policy, { tolerant: true });
+    const result = validateParsed(parsed);
+    expect(result.issues.filter(isError)).toHaveLength(0);
+    expect(result.task.isPolicy).toBe(true);
+  });
+
+  it("does not require a return statement for policies", () => {
+    const policy = `policy workspace v0
+
+goal "No return needed."
+
+use file.read
+deny network.*
+`;
+    const parsed = parseAEX(policy, { tolerant: true });
+    const result = validateParsed(parsed);
+    const returnErrors = result.issues.filter(
+      (i) => i.code === "AEX003" && i.severity === "error",
+    );
+    expect(returnErrors).toHaveLength(0);
+  });
+
+  it("flags need declarations in policy files via parser diagnostic", () => {
+    const policy = `policy workspace v0
+
+goal "Policy with need"
+
+use file.read
+
+need path: file
+
+confirm before file.read
+`;
+    const parsed = parseAEX(policy, { tolerant: true });
+    // Parser catches need in policy files as a diagnostic (AEX100)
+    expect(parsed.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "Policy files cannot have need declarations",
+        }),
+      ]),
+    );
+    // Validator surfaces parser diagnostics as AEX100 errors
+    const result = validateParsed(parsed);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "AEX100",
+        }),
+      ]),
+    );
+  });
+
+  it("flags execution steps in policy files via parser diagnostic", () => {
+    const policy = `policy workspace v0
+
+goal "Policy with do step"
+
+use file.read
+
+do file.read(paths="README.md") -> content
+
+return content
+`;
+    const parsed = parseAEX(policy, { tolerant: true });
+    // Parser catches execution steps in policy files
+    expect(parsed.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "Policy files cannot have execution steps",
+        }),
+      ]),
+    );
+    const result = validateParsed(parsed);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "AEX100",
+        }),
+      ]),
+    );
+  });
+
+  it("requires goal in policy files (AEX002)", () => {
+    const policy = `policy workspace v0
+
+use file.read
+deny network.*
+`;
+    const parsed = parseAEX(policy, { tolerant: true });
+    const result = validateParsed(parsed);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "AEX002",
+          message: "Policy is missing a goal.",
+        }),
+      ]),
+    );
+  });
+
+  it("requires policy declaration (AEX001)", () => {
+    const bad = `goal "Orphaned goal"
+
+use file.read
+`;
+    const parsed = parseAEX(bad, { tolerant: true });
+    const result = validateParsed(parsed);
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          severity: "error",
+          code: "AEX001",
+        }),
+      ]),
+    );
+  });
+});
+
 function isError(issue: ValidationIssue): boolean {
   return issue.severity === "error";
 }

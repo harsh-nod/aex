@@ -14,6 +14,7 @@ export interface AEXAgent {
 
 export interface AEXTask {
   agent?: AEXAgent;
+  isPolicy: boolean;
   goal?: string;
   use: string[];
   deny: string[];
@@ -110,6 +111,7 @@ export function parseAEX(
 ): ParseResult {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const task: AEXTask = {
+    isPolicy: false,
     use: [],
     deny: [],
     needs: {},
@@ -185,12 +187,19 @@ export function parseAEX(
 
       // Metadata (only at top level, baseIndent 0)
       if (baseIndent === 0) {
-        if (trimmed.startsWith("agent ")) {
-          const match = /^agent\s+([A-Za-z0-9_-]+)\s+v([0-9.]+)$/.exec(trimmed);
+        if (trimmed.startsWith("agent ") || trimmed.startsWith("policy ")) {
+          const keyword = trimmed.startsWith("policy ") ? "policy" : "agent";
+          const regex = keyword === "policy"
+            ? /^policy\s+([A-Za-z0-9_-]+)\s+v([0-9.]+)$/
+            : /^agent\s+([A-Za-z0-9_-]+)\s+v([0-9.]+)$/;
+          const match = regex.exec(trimmed);
           if (!match) {
-            diagnostics.push({ message: "Invalid agent declaration", line: lineNum });
+            diagnostics.push({ message: `Invalid ${keyword} declaration`, line: lineNum });
           } else {
             task.agent = { name: match[1], version: match[2] };
+            if (keyword === "policy") {
+              task.isPolicy = true;
+            }
           }
           idx++;
           continue;
@@ -220,6 +229,11 @@ export function parseAEX(
         }
 
         if (trimmed.startsWith("need ")) {
+          if (task.isPolicy) {
+            diagnostics.push({ message: "Policy files cannot have need declarations", line: lineNum });
+            idx++;
+            continue;
+          }
           const match = /^need\s+([A-Za-z0-9_.-]+)\s*:\s*(.+)$/.exec(trimmed);
           if (!match) {
             diagnostics.push({ message: "Invalid need declaration", line: lineNum });
@@ -246,6 +260,16 @@ export function parseAEX(
             }
           }
           task.budget = budget;
+          idx++;
+          continue;
+        }
+      }
+
+      // Policy files cannot have execution steps
+      if (task.isPolicy && baseIndent === 0) {
+        const stepKeywords = ["do ", "make ", "check ", "return ", "if ", "for "];
+        if (stepKeywords.some((kw) => trimmed.startsWith(kw)) && !trimmed.startsWith("confirm before ")) {
+          diagnostics.push({ message: "Policy files cannot have execution steps", line: lineNum });
           idx++;
           continue;
         }
@@ -494,6 +518,7 @@ function countOccurrences(value: string, token: string): number {
 export interface AEXIR {
   version: string;
   agent: string;
+  type: "task" | "policy";
   goal?: string;
   permissions: {
     use: string[];
@@ -603,6 +628,7 @@ export function compileTask(task: AEXTask): AEXIR {
   return {
     version: agentVersion,
     agent: agentName,
+    type: task.isPolicy ? "policy" : "task",
     goal: task.goal,
     permissions: {
       use: task.use,

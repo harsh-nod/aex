@@ -60,7 +60,9 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
 
   if (!task.agent) {
     issues.push({
-      message: "Task is missing an agent declaration.",
+      message: task.isPolicy
+        ? "Policy is missing a policy declaration."
+        : "Task is missing an agent declaration.",
       severity: "error",
       code: "AEX001",
     });
@@ -68,12 +70,37 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
 
   if (!task.goal) {
     issues.push({
-      message: "Task is missing a goal.",
+      message: task.isPolicy
+        ? "Policy is missing a goal."
+        : "Task is missing a goal.",
       severity: "error",
       code: "AEX002",
     });
   }
 
+  if (task.isPolicy) {
+    // Policy-specific validation
+    if (Object.keys(task.needs).length > 0) {
+      issues.push({
+        message: "Policy files cannot have need declarations.",
+        severity: "error",
+        code: "AEX033",
+      });
+    }
+    const execSteps = task.steps.filter(
+      (s) => s.kind === "do" || s.kind === "make" || s.kind === "return" || s.kind === "check" || s.kind === "if" || s.kind === "for",
+    );
+    if (execSteps.length > 0) {
+      issues.push({
+        message: "Policy files cannot have execution steps.",
+        severity: "error",
+        code: "AEX034",
+      });
+    }
+    return { task, issues };
+  }
+
+  // Task-specific validation
   if (!task.returnStatement) {
     issues.push({
       message: "Task is missing a return statement.",

@@ -12,6 +12,10 @@ import {
   resolvePolicy,
   createStructuredLogger,
   validateInputs,
+  mergePolicyAndTask,
+  extractPolicyLayer,
+  discoverPolicy,
+  PolicyLayer,
 } from "@aex-lang/runtime";
 import { parseFile, matchPattern, matchesAny } from "@aex-lang/parser";
 import { taskToLangGraph } from "../../aex-langgraph/src/index.js";
@@ -1085,5 +1089,284 @@ return r2
 
     expect(result.status).toBe("blocked");
     expect(result.issues[0]).toContain("budget exhausted");
+  });
+});
+
+describe("policy parsing", () => {
+  it("parses policy keyword and sets isPolicy", async () => {
+    const { parseAEX } = await import("@aex-lang/parser");
+    const parsed = parseAEX(
+      `policy workspace v0
+
+goal "Default security boundary."
+
+use file.read, file.write, tests.run, git.*
+deny network.*, secrets.read
+
+confirm before file.write
+
+budget calls=100
+`,
+      { tolerant: true },
+    );
+    expect(parsed.task.isPolicy).toBe(true);
+    expect(parsed.task.agent?.name).toBe("workspace");
+    expect(parsed.task.agent?.version).toBe("0");
+    expect(parsed.task.use).toEqual(["file.read", "file.write", "tests.run", "git.*"]);
+    expect(parsed.task.deny).toEqual(["network.*", "secrets.read"]);
+    expect(parsed.task.goal).toBe("Default security boundary.");
+    expect(parsed.task.budget).toEqual({ calls: 100 });
+    const confirmSteps = parsed.task.steps.filter((s) => s.kind === "confirm");
+    expect(confirmSteps).toHaveLength(1);
+    expect(parsed.diagnostics).toHaveLength(0);
+  });
+
+  it("emits diagnostic when policy has need declarations", async () => {
+    const { parseAEX } = await import("@aex-lang/parser");
+    const parsed = parseAEX(
+      `policy workspace v0
+
+goal "Bad policy."
+
+use file.read
+
+need path: file
+`,
+      { tolerant: true },
+    );
+    expect(parsed.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "Policy files cannot have need declarations",
+        }),
+      ]),
+    );
+  });
+
+  it("emits diagnostic when policy has do steps", async () => {
+    const { parseAEX } = await import("@aex-lang/parser");
+    const parsed = parseAEX(
+      `policy workspace v0
+
+goal "Bad policy."
+
+use file.read
+
+do file.read(paths="README.md") -> content
+`,
+      { tolerant: true },
+    );
+    expect(parsed.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "Policy files cannot have execution steps",
+        }),
+      ]),
+    );
+  });
+
+  it("compiles policy to IR with type=policy", async () => {
+    const { parseAEX, compileTask } = await import("@aex-lang/parser");
+    const parsed = parseAEX(
+      `policy workspace v0
+
+goal "Compile test."
+
+use file.read
+deny network.*
+
+confirm before file.read
+`,
+      { tolerant: true },
+    );
+    const ir = compileTask(parsed.task);
+    expect(ir.type).toBe("policy");
+    expect(ir.agent).toBe("workspace");
+    expect(ir.permissions.use).toEqual(["file.read"]);
+    expect(ir.permissions.deny).toEqual(["network.*"]);
+  });
+});
+
+describe("mergePolicyAndTask", () => {
+  it("passes through policy fields in policy-only mode", () => {
+    const policy: PolicyLayer = {
+      use: ["file.read", "file.write", "git.*"],
+      deny: ["network.*", "secrets.read"],
+      confirm: ["file.write"],
+      budget: 100,
+    };
+    const result = mergePolicyAndTask(policy);
+    expect(result.allow).toEqual(["file.read", "file.write", "git.*"]);
+    expect(result.deny).toEqual(["network.*", "secrets.read"]);
+    expect(result.confirm).toEqual(["file.write"]);
+    expect(result.budget).toBe(100);
+  });
+
+  it("intersects allow lists between policy and task", () => {
+    const policy: PolicyLayer = {
+      use: ["file.*", "tests.run"],
+      deny: [],
+      confirm: [],
+    };
+    const task: PolicyLayer = {
+      use: ["file.read", "network.fetch"],
+      deny: [],
+      confirm: [],
+    };
+    const result = mergePolicyAndTask(policy, task);
+    expect(result.allow).toContain("file.read");
+    expect(result.allow).not.toContain("network.fetch");
+  });
+
+  it("unions deny lists", () => {
+    const policy: PolicyLayer = {
+      use: ["*"],
+      deny: ["network.*"],
+      confirm: [],
+    };
+    const task: PolicyLayer = {
+      use: ["file.read"],
+      deny: ["secrets.read"],
+      confirm: [],
+    };
+    const result = mergePolicyAndTask(policy, task);
+    expect(result.deny).toContain("network.*");
+    expect(result.deny).toContain("secrets.read");
+  });
+
+  it("unions confirm lists", () => {
+    const policy: PolicyLayer = {
+      use: ["*"],
+      deny: [],
+      confirm: ["file.write"],
+    };
+    const task: PolicyLayer = {
+      use: ["file.read", "file.write"],
+      deny: [],
+      confirm: ["tests.run"],
+    };
+    const result = mergePolicyAndTask(policy, task);
+    expect(result.confirm).toContain("file.write");
+    expect(result.confirm).toContain("tests.run");
+  });
+
+  it("takes min budget", () => {
+    const policy: PolicyLayer = { use: ["*"], deny: [], confirm: [], budget: 100 };
+    const task: PolicyLayer = { use: ["file.read"], deny: [], confirm: [], budget: 20 };
+    expect(mergePolicyAndTask(policy, task).budget).toBe(20);
+  });
+
+  it("uses available budget when only one side has it", () => {
+    const policy: PolicyLayer = { use: ["*"], deny: [], confirm: [], budget: 50 };
+    const task: PolicyLayer = { use: ["file.read"], deny: [], confirm: [] };
+    expect(mergePolicyAndTask(policy, task).budget).toBe(50);
+
+    const policy2: PolicyLayer = { use: ["*"], deny: [], confirm: [] };
+    const task2: PolicyLayer = { use: ["file.read"], deny: [], confirm: [], budget: 30 };
+    expect(mergePolicyAndTask(policy2, task2).budget).toBe(30);
+  });
+
+  it("deduplicates deny and confirm entries", () => {
+    const policy: PolicyLayer = { use: ["*"], deny: ["network.*"], confirm: ["file.write"] };
+    const task: PolicyLayer = { use: ["file.read"], deny: ["network.*"], confirm: ["file.write"] };
+    const result = mergePolicyAndTask(policy, task);
+    expect(result.deny.filter((d) => d === "network.*")).toHaveLength(1);
+    expect(result.confirm.filter((c) => c === "file.write")).toHaveLength(1);
+  });
+});
+
+describe("extractPolicyLayer", () => {
+  it("extracts policy layer from parsed policy", async () => {
+    const { parseAEX } = await import("@aex-lang/parser");
+    const parsed = parseAEX(
+      `policy workspace v0
+
+goal "Extract test."
+
+use file.read, git.*
+deny network.*
+
+confirm before file.read
+
+budget calls=50
+`,
+      { tolerant: true },
+    );
+    const layer = extractPolicyLayer(parsed.task);
+    expect(layer.use).toEqual(["file.read", "git.*"]);
+    expect(layer.deny).toEqual(["network.*"]);
+    expect(layer.confirm).toEqual(["file.read"]);
+    expect(layer.budget).toBe(50);
+  });
+
+  it("extracts policy layer from task contract", async () => {
+    const { parseAEX } = await import("@aex-lang/parser");
+    const parsed = parseAEX(
+      `agent fix_test v0
+
+goal "Fix test."
+
+use file.read, tests.run
+deny secrets.read
+
+confirm before tests.run
+
+budget calls=10
+
+need test_cmd: str
+
+do tests.run(cmd=test_cmd) -> result
+
+return result
+`,
+      { tolerant: true },
+    );
+    const layer = extractPolicyLayer(parsed.task);
+    expect(layer.use).toEqual(["file.read", "tests.run"]);
+    expect(layer.deny).toEqual(["secrets.read"]);
+    expect(layer.confirm).toEqual(["tests.run"]);
+    expect(layer.budget).toBe(10);
+  });
+});
+
+describe("discoverPolicy", () => {
+  it("finds .aex/policy.aex", async () => {
+    const dir = await fs.mkdtemp(path.join(tmpdir(), "aex-discover-"));
+    const aexDir = path.join(dir, ".aex");
+    await fs.mkdir(aexDir);
+    await fs.writeFile(
+      path.join(aexDir, "policy.aex"),
+      `policy workspace v0\ngoal "Test"\nuse file.read`,
+      "utf8",
+    );
+    const result = await discoverPolicy(dir);
+    expect(result).toBe(path.join(aexDir, "policy.aex"));
+  });
+
+  it("finds aex.policy.aex as fallback", async () => {
+    const dir = await fs.mkdtemp(path.join(tmpdir(), "aex-discover-"));
+    await fs.writeFile(
+      path.join(dir, "aex.policy.aex"),
+      `policy workspace v0\ngoal "Test"\nuse file.read`,
+      "utf8",
+    );
+    const result = await discoverPolicy(dir);
+    expect(result).toBe(path.join(dir, "aex.policy.aex"));
+  });
+
+  it("prefers .aex/policy.aex over aex.policy.aex", async () => {
+    const dir = await fs.mkdtemp(path.join(tmpdir(), "aex-discover-"));
+    const aexDir = path.join(dir, ".aex");
+    await fs.mkdir(aexDir);
+    await fs.writeFile(path.join(aexDir, "policy.aex"), "policy a v0\ngoal \"A\"\nuse *", "utf8");
+    await fs.writeFile(path.join(dir, "aex.policy.aex"), "policy b v0\ngoal \"B\"\nuse *", "utf8");
+    const result = await discoverPolicy(dir);
+    expect(result).toBe(path.join(aexDir, "policy.aex"));
+  });
+
+  it("returns null when no policy exists", async () => {
+    const dir = await fs.mkdtemp(path.join(tmpdir(), "aex-discover-"));
+    const result = await discoverPolicy(dir);
+    expect(result).toBeNull();
   });
 });

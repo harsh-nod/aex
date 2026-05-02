@@ -20,6 +20,19 @@ import { promisify } from "node:util";
 import { execFile as childExecFile } from "node:child_process";
 import { tmpdir } from "node:os";
 
+export {
+  CLAUDE_CODE_TOOL_MAP,
+  mapToolName,
+  extractToolPath,
+  evaluateGate,
+  readBudgetState,
+  writeBudgetState,
+  resolvebudgetState,
+  type GateInput,
+  type GateOutput,
+  type BudgetState,
+} from "./gate.js";
+
 const execFile = promisify(childExecFile);
 
 export interface RuntimePolicy {

@@ -1,13 +1,16 @@
 # Claude Code
 
-AEX provides two ways to enforce contracts with [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
+AEX provides three ways to enforce policies with [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 
-1. **MCP Proxy** (recommended) — `aex proxy` sits between Claude Code and upstream MCP servers, gating every tool call against your policy
-2. **Hooks** — `aex check` runs as a pre-flight validation hook
+1. **`aex gate`** (recommended) — PreToolUse hook that gates every built-in tool call (Read, Write, Bash, etc.) against your policy
+2. **`aex proxy`** — MCP proxy that gates tool calls from upstream MCP servers
+3. **Both together** — full coverage of built-in and MCP tools
 
-## MCP Proxy Setup
+> **Important:** AEX only guards tool calls routed through it. `aex gate` covers Claude Code's built-in tools, `aex proxy` covers MCP tools. Use both for complete enforcement.
 
-The proxy intercepts every tool call, enforces allow/deny lists, budgets, and confirmation gates, and emits structured audit logs.
+## Built-in Tool Enforcement (`aex gate`)
+
+`aex gate` is a Claude Code `PreToolUse` hook. It intercepts every tool call — including built-in tools like Read, Write, Edit, Bash, Glob, and Grep — and evaluates them against your AEX policy.
 
 ### 1. Create a policy
 
@@ -15,14 +18,47 @@ The proxy intercepts every tool call, enforces allow/deny lists, budgets, and co
 aex init --policy
 ```
 
-This scaffolds `.aex/policy.aex`:
+### 2. Configure the hook
+
+Add to your `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "command": "aex gate"
+      }
+    ]
+  }
+}
+```
+
+### Tool name mapping
+
+Claude Code uses PascalCase tool names. `aex gate` maps them to AEX capabilities:
+
+| Claude Code Tool | AEX Capability |
+|------------------|----------------|
+| Read | file.read |
+| Write, Edit, MultiEdit | file.write |
+| Glob, Grep, LS | file.read |
+| Bash | shell.exec |
+| WebFetch | network.fetch |
+| WebSearch | network.search |
+| NotebookRead | file.read |
+| NotebookEdit | file.write |
+| Agent | agent.spawn |
+
+Write your policy using the AEX capability names:
 
 ```aex
 policy workspace v0
 
 goal "Default security boundary for this repository."
 
-use file.read, file.write, tests.run, git.*
+allow file.read, file.write, tests.run, shell.exec
 deny network.*, secrets.read
 
 confirm before file.write
@@ -30,50 +66,36 @@ confirm before file.write
 budget calls=100
 ```
 
-### 2. Preview effective permissions
+With this policy, `WebFetch` and `WebSearch` are blocked (they map to `network.*`), `Write` requires confirmation (maps to `file.write`), and all calls are capped at 100.
 
-```bash
-aex effective
+### How it works
+
+For each tool call, Claude Code sends JSON on stdin:
+
+```json
+{
+  "session_id": "abc-123",
+  "tool_name": "Write",
+  "tool_input": { "file_path": "/src/foo.ts", "content": "..." }
+}
 ```
 
-Output:
+`aex gate` responds with a permission decision:
 
-```
-Policy:   .aex/policy.aex
+- **Allow:** `{ "permissionDecision": "allow" }`
+- **Deny:** `{ "permissionDecision": "deny", "reason": "..." }`
+- **Confirm:** `{ "permissionDecision": "ask", "message": "..." }` — prompts the user
 
-Allowed:
-  file.read
-  file.write
-  tests.run
-  git.*
+## MCP Tool Enforcement (`aex proxy`)
 
-Denied:
-  network.*
-  secrets.read
-
-Confirmation required:
-  file.write
-
-Budget:
-  calls=100
-```
-
-To see how a task contract narrows the policy:
-
-```bash
-aex effective --contract tasks/fix-test.aex
-```
-
-### 3. Configure Claude Code to use the proxy
-
-In your `.claude/settings.json`, point your MCP server through `aex proxy`:
+For tools provided by MCP servers, use `aex proxy` to gate every call:
 
 ```json
 {
   "mcpServers": {
     "tools": {
       "command": "aex",
-      "args": ["proxy", "--upstream", "your-mcp-server", "--auto-confirm"]
+      "args": ["proxy", "--", "npx", "-y", "your-mcp-server"]
     }
   }
 }
@@ -88,51 +110,55 @@ The proxy auto-discovers `.aex/policy.aex`. To also apply a task contract:
       "command": "aex",
       "args": [
         "proxy",
-        "--upstream", "your-mcp-server",
-        "--contract", "tasks/fix-test.aex"
+        "--contract", "tasks/fix-test.aex",
+        "--", "npx", "-y", "your-mcp-server"
       ]
     }
   }
 }
 ```
 
-### What the proxy does
+The proxy filters `tools/list` responses, gates `tools/call` requests, enforces budgets and confirmations, and logs every decision as structured JSON to stderr.
 
-- **Filters `tools/list`** — removes tools not in the allow list or in the deny list
-- **Gates `tools/call`** — blocks denied tools, unapproved tools, and budget-exceeded calls
-- **Enforces confirmation** — blocks tools requiring confirmation (pass `--auto-confirm` to bypass)
-- **Emits audit logs** — every decision is logged as structured JSON to stderr
+## Full Coverage Setup
 
-## Hooks (Static Validation)
-
-For lighter-weight validation without proxying, use `aex check` as a Claude Code hook:
+For complete enforcement over both built-in and MCP tools:
 
 ```json
 {
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "aex check .aex/policy.aex"
-          }
-        ]
+        "matcher": ".*",
+        "command": "aex gate"
       }
     ]
+  },
+  "mcpServers": {
+    "tools": {
+      "command": "aex",
+      "args": ["proxy", "--", "npx", "-y", "your-mcp-server"]
+    }
   }
 }
 ```
 
-Note: `aex check` performs static validation only — it does not intercept or block tool calls at runtime. Use the MCP proxy for runtime enforcement.
+### Preview effective permissions
+
+```bash
+# Policy only
+aex effective
+
+# Policy + task contract
+aex effective --contract tasks/fix-test.aex
+```
 
 ## Pairing with CLAUDE.md
 
 | Aspect | CLAUDE.md | AEX Policy |
 |--------|-----------|------------|
 | Format | Free-form markdown | Structured DSL |
-| Enforcement | Best-effort (model follows instructions) | Deterministic via `aex proxy` |
+| Enforcement | Best-effort (model follows instructions) | Deterministic via `aex gate` / `aex proxy` |
 | Scope | Session-wide guidance | Session-wide (policy) or per-task (contract) |
 | Audit | No built-in logging | Every tool call logged as structured JSON |
 
@@ -142,4 +168,4 @@ Use both together: `CLAUDE.md` for project-wide conventions, AEX policy for enfo
 
 - [Language Overview](/language/overview) — AEX policy and task syntax
 - [Codex Integration](/integrations/codex) — same proxy approach for OpenAI Codex CLI
-- [CLI Reference](/reference/cli) — full list of CLI flags
+- [CLI Reference](/reference/cli) — `aex gate`, `aex proxy`, and other commands

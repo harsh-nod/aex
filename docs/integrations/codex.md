@@ -20,7 +20,7 @@ policy workspace v0
 
 goal "Default security boundary for this repository."
 
-use file.read, file.write, tests.run, git.*
+allow file.read, file.write, tests.run, git.*
 deny network.*, secrets.read
 
 confirm before file.write
@@ -45,13 +45,13 @@ aex effective --contract tasks/fix-bug.aex
 Start the proxy between Codex and your MCP server:
 
 ```bash
-aex proxy --upstream "your-mcp-server" --auto-confirm
+aex proxy --auto-confirm -- npx -y your-mcp-server
 ```
 
 The proxy auto-discovers `.aex/policy.aex`. To also apply a task contract:
 
 ```bash
-aex proxy --upstream "your-mcp-server" --contract tasks/fix-bug.aex
+aex proxy --contract tasks/fix-bug.aex -- npx -y your-mcp-server
 ```
 
 ### What the proxy does
@@ -99,7 +99,7 @@ When a policy and task contract are both active, effective permissions are the m
 The proxy emits structured JSON to stderr for every decision. Each event includes timestamps for correlation:
 
 ```bash
-aex proxy --upstream "your-mcp-server" 2>audit.json
+aex proxy 2>audit.json -- npx -y your-mcp-server
 ```
 
 For `aex run`, pass `--log-json` or `--otlp-endpoint` for structured logs with OpenTelemetry-compatible trace IDs.

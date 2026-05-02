@@ -175,12 +175,26 @@ The runtime logs every tool call and check to stdout:
 {"event":"run.finished","status":"success"}
 ```
 
-## Use as an MCP Proxy
+## Enforce with Claude Code
 
-If you use Claude Code or Codex CLI, `aex proxy` sits between your client and upstream MCP servers, gating every tool call against your policy:
+### Built-in tools (`aex gate`)
+
+Add to `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [{ "matcher": ".*", "command": "aex gate" }]
+  }
+}
+```
+
+`aex gate` maps Claude Code tools (Write, Bash, etc.) to AEX capabilities (file.write, shell.exec) and gates them against your policy.
+
+### MCP tools (`aex proxy`)
 
 ```bash
-aex proxy --upstream "your-mcp-server" --auto-confirm
+aex proxy --auto-confirm -- npx -y your-mcp-server
 ```
 
 The proxy auto-discovers `.aex/policy.aex`. See the [Claude Code](/integrations/claude-code) and [Codex](/integrations/codex) integration guides for full setup.

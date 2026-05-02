@@ -170,14 +170,19 @@ The allow list is the intersection (only tools both policy and task agree on), d
 Start an MCP stdio proxy that gates every tool call against your policy.
 
 ```bash
-aex proxy --upstream "your-mcp-server"
+# Preferred: everything after -- is the upstream command
+aex proxy -- npx -y your-mcp-server --flag "hello world"
+
+# Legacy: --upstream with a quoted string
+aex proxy -- your-mcp-server
 ```
 
 ### Options
 
 | Flag | Description |
 |------|-------------|
-| `--upstream <cmd>` | Command to spawn the upstream MCP server |
+| `-- <cmd...>` | Everything after `--` is the upstream command (preferred) |
+| `--upstream <cmd>` | Quoted upstream command string (legacy, deprecated) |
 | `--contract <file>` | Optional task contract for additional constraints |
 | `--policy <file>` | Explicit policy file (otherwise auto-discovered) |
 | `--auto-confirm` | Automatically approve confirmation gates |
@@ -185,6 +190,43 @@ aex proxy --upstream "your-mcp-server"
 The proxy auto-discovers `.aex/policy.aex` in the working directory. It sits between your MCP client (Claude Code, Codex CLI) and the upstream server, enforcing allow/deny rules, confirmation gates, and budgets on every `tools/call` request.
 
 See the [Claude Code](/integrations/claude-code) and [Codex](/integrations/codex) integration guides for full setup.
+
+## `aex gate`
+
+Claude Code `PreToolUse` hook that evaluates every tool call against your AEX policy.
+
+```bash
+# Configured as a Claude Code hook, not run directly
+# In .claude/settings.json:
+# { "hooks": { "PreToolUse": [{ "matcher": ".*", "command": "aex gate" }] } }
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--contract <file>` | Optional task contract for additional constraints |
+| `--policy <file>` | Explicit policy file (otherwise auto-discovered from `cwd` in hook input) |
+
+### Behavior
+
+- Reads JSON from stdin (Claude Code hook protocol)
+- Maps Claude Code tool names to AEX capabilities (e.g., `Write` → `file.write`)
+- Evaluates against allow/deny/confirm/budget rules
+- Responds with `permissionDecision`: `"allow"`, `"deny"`, or `"ask"`
+- Fails open if no policy is found (allows all calls)
+- Tracks budget state across calls via `.aex/.gate-budget.json`
+
+### Tool Name Mapping
+
+| Claude Code | AEX Capability |
+|-------------|----------------|
+| Read, Glob, Grep, LS | file.read |
+| Write, Edit, MultiEdit | file.write |
+| Bash | shell.exec |
+| WebFetch | network.fetch |
+| WebSearch | network.search |
+| Agent | agent.spawn |
 
 ## `aex sign` and `aex verify`
 

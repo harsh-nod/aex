@@ -54,11 +54,17 @@
     - [x] `aex effective` previews merged permissions before running
     - [x] Parser-level validation: policy files reject `need`, `do`, `make`, `check`, `return`
 12. **MCP proxy**
-    - [x] `aex proxy --upstream <cmd>` gates MCP tool calls against policy
+    - [x] `aex proxy -- <cmd>` gates MCP tool calls against policy
     - [x] Auto-discovers `.aex/policy.aex`
     - [x] Budget enforcement, confirmation gates, allow/deny filtering
     - [x] Structured JSON audit logging to stderr
     - [x] `tools/list` response filtering
+13. **Claude Code hook enforcement**
+    - [x] `aex gate` PreToolUse hook gates built-in tools (Read, Write, Bash, etc.)
+    - [x] Tool name mapping: Claude Code PascalCase → AEX dotted capabilities
+    - [x] Budget state persistence across hook invocations
+    - [x] `allow` keyword for policy files, `AEX120`/`AEX121` diagnostics
+    - [x] `task` keyword as alternative to `agent`
 
 ## Up Next
 

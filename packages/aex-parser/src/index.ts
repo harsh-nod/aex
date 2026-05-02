@@ -187,11 +187,13 @@ export function parseAEX(
 
       // Metadata (only at top level, baseIndent 0)
       if (baseIndent === 0) {
-        if (trimmed.startsWith("agent ") || trimmed.startsWith("policy ")) {
-          const keyword = trimmed.startsWith("policy ") ? "policy" : "agent";
-          const regex = keyword === "policy"
-            ? /^policy\s+([A-Za-z0-9_-]+)\s+v([0-9.]+)$/
-            : /^agent\s+([A-Za-z0-9_-]+)\s+v([0-9.]+)$/;
+        if (trimmed.startsWith("agent ") || trimmed.startsWith("policy ") || trimmed.startsWith("task ")) {
+          const keyword = trimmed.startsWith("policy ")
+            ? "policy"
+            : trimmed.startsWith("task ")
+              ? "task"
+              : "agent";
+          const regex = new RegExp(`^${keyword}\\s+([A-Za-z0-9_-]+)\\s+v([0-9.]+)$`);
           const match = regex.exec(trimmed);
           if (!match) {
             diagnostics.push({ message: `Invalid ${keyword} declaration`, line: lineNum });
@@ -222,6 +224,16 @@ export function parseAEX(
           continue;
         }
 
+        if (trimmed.startsWith("allow ")) {
+          if (!task.isPolicy) {
+            diagnostics.push({ message: "AEX121: `allow` is only valid in policy documents. Use `use file.read, tests.run` inside a task contract.", line: lineNum });
+          } else {
+            task.use.push(...splitList(trimmed.substring(6)));
+          }
+          idx++;
+          continue;
+        }
+
         if (trimmed.startsWith("deny ")) {
           task.deny.push(...splitList(trimmed.substring(5)));
           idx++;
@@ -230,7 +242,7 @@ export function parseAEX(
 
         if (trimmed.startsWith("need ")) {
           if (task.isPolicy) {
-            diagnostics.push({ message: "Policy files cannot have need declarations", line: lineNum });
+            diagnostics.push({ message: "AEX120: `need` is not allowed in a policy document. Policies define ambient authority only.", line: lineNum });
             idx++;
             continue;
           }
@@ -269,7 +281,8 @@ export function parseAEX(
       if (task.isPolicy && baseIndent === 0) {
         const stepKeywords = ["do ", "make ", "check ", "return ", "if ", "for "];
         if (stepKeywords.some((kw) => trimmed.startsWith(kw)) && !trimmed.startsWith("confirm before ")) {
-          diagnostics.push({ message: "Policy files cannot have execution steps", line: lineNum });
+          const kw = trimmed.split(" ")[0];
+          diagnostics.push({ message: `AEX120: \`${kw}\` is not allowed in a policy document. Policies define ambient authority only. Use \`task <name> v0\` for ordered workflows.`, line: lineNum });
           idx++;
           continue;
         }
@@ -419,7 +432,7 @@ export function parseAEX(
   task.steps = parseSteps(0);
 
   if (!task.agent) {
-    diagnostics.push({ message: "Missing agent declaration", line: 0 });
+    diagnostics.push({ message: "Missing agent/task/policy declaration", line: 0 });
   }
   if (!task.goal) {
     diagnostics.push({ message: "Missing goal declaration", line: 0 });

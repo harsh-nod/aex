@@ -79,12 +79,13 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
   }
 
   if (task.isPolicy) {
-    // Policy-specific validation
+    // Policy-specific validation (parser catches these at parse time with AEX120,
+    // but we also validate here in case the parser was run in tolerant mode)
     if (Object.keys(task.needs).length > 0) {
       issues.push({
-        message: "Policy files cannot have need declarations.",
+        message: "AEX120: `need` is not allowed in a policy document. Policies define ambient authority only.",
         severity: "error",
-        code: "AEX033",
+        code: "AEX120",
       });
     }
     const execSteps = task.steps.filter(
@@ -92,9 +93,9 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
     );
     if (execSteps.length > 0) {
       issues.push({
-        message: "Policy files cannot have execution steps.",
+        message: "AEX120: Execution steps are not allowed in a policy document. Policies define ambient authority only.",
         severity: "error",
-        code: "AEX034",
+        code: "AEX120",
       });
     }
     return { task, issues };

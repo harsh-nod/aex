@@ -14,6 +14,11 @@ import {
   extractPolicyLayer,
   discoverPolicy,
   EffectivePermissions,
+  evaluateGate,
+  readBudgetState,
+  writeBudgetState,
+  resolvebudgetState,
+  GateInput,
 } from "@aex-lang/runtime";
 import { AEXProxy } from "@aex-lang/mcp-gateway";
 import { promises as fs } from "node:fs";
@@ -496,19 +501,38 @@ program
 
 program
   .command("proxy")
-  .requiredOption("--upstream <cmd>", "Command to spawn as the upstream MCP server")
+  .option("--upstream <cmd>", "Command to spawn as the upstream MCP server (deprecated, use -- instead)")
   .option("--contract <file>", "Path to a task contract .aex file")
   .option("--policy <file>", "Path to a policy .aex file (auto-discovers if omitted)")
   .option("--auto-confirm", "Automatically approve confirmation gates")
+  .allowUnknownOption(true)
   .description("Start an MCP stdio proxy that enforces AEX policy on every tool call")
   .action(
     async (options: {
-      upstream: string;
+      upstream?: string;
       contract?: string;
       policy?: string;
       autoConfirm?: boolean;
-    }) => {
+    }, cmd: Command) => {
       try {
+        // Support both: `aex proxy -- npx server --flag` and legacy `aex proxy --upstream "cmd"`
+        const rawArgs = cmd.args;
+        let upstreamParts: string[];
+
+        if (rawArgs.length > 0) {
+          // Everything after -- is the upstream command
+          upstreamParts = rawArgs;
+        } else if (options.upstream) {
+          // Legacy --upstream "cmd string"
+          upstreamParts = options.upstream.split(/\s+/).filter(Boolean);
+        } else {
+          process.stderr.write(
+            `${c.red("error")} No upstream command. Use: aex proxy -- <command>\n`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+
         const policyPath = options.policy
           ? resolveInput(options.policy)
           : await discoverPolicy();
@@ -554,8 +578,7 @@ program
         }
 
         // Spawn upstream
-        const parts = options.upstream.split(/\s+/).filter(Boolean);
-        const child = spawn(parts[0], parts.slice(1), {
+        const child = spawn(upstreamParts[0], upstreamParts.slice(1), {
           stdio: ["pipe", "pipe", "inherit"],
         });
 
@@ -582,6 +605,90 @@ program
         );
       } catch (error) {
         handleError(error);
+      }
+    },
+  );
+
+program
+  .command("gate")
+  .option("--contract <file>", "Path to a task contract .aex file")
+  .option("--policy <file>", "Path to a policy .aex file (auto-discovers if omitted)")
+  .description("Claude Code PreToolUse hook: evaluate tool calls against AEX policy")
+  .action(
+    async (options: { contract?: string; policy?: string }) => {
+      try {
+        // Read stdin
+        const chunks: Buffer[] = [];
+        for await (const chunk of process.stdin) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const raw = Buffer.concat(chunks).toString("utf8").trim();
+
+        let input: GateInput;
+        try {
+          input = JSON.parse(raw) as GateInput;
+        } catch {
+          process.stderr.write("aex gate: invalid JSON on stdin\n");
+          process.exitCode = 2;
+          return;
+        }
+
+        if (!input.tool_name) {
+          process.stderr.write("aex gate: missing tool_name in input\n");
+          process.exitCode = 2;
+          return;
+        }
+
+        // Discover policy
+        const policyPath = options.policy
+          ? resolveInput(options.policy)
+          : await discoverPolicy(input.cwd || undefined);
+
+        if (!policyPath) {
+          // No policy — fail open
+          process.stdout.write(
+            JSON.stringify({ permissionDecision: "allow" }) + "\n",
+          );
+          return;
+        }
+
+        // Parse policy and extract layer
+        const policyParsed = await parseFile(policyPath, { tolerant: true });
+        const policyLayer = extractPolicyLayer(policyParsed.task);
+
+        // Optionally merge with contract
+        let taskLayer;
+        if (options.contract) {
+          const taskParsed = await parseFile(resolveInput(options.contract), {
+            tolerant: true,
+          });
+          taskLayer = extractPolicyLayer(taskParsed.task);
+        }
+
+        const effective = mergePolicyAndTask(policyLayer, taskLayer);
+
+        // Budget tracking
+        let budgetState;
+        if (effective.budget !== undefined && input.session_id) {
+          const dir = input.cwd || process.cwd();
+          const existing = await readBudgetState(dir);
+          budgetState = resolvebudgetState(existing, input.session_id);
+        }
+
+        // Evaluate
+        const result = evaluateGate(input, effective, budgetState);
+
+        // Persist budget state
+        if (result.budgetState && input.cwd) {
+          await writeBudgetState(input.cwd, result.budgetState);
+        }
+
+        process.stdout.write(JSON.stringify(result.output) + "\n");
+      } catch (error) {
+        const msg =
+          error instanceof Error ? error.message : String(error);
+        process.stderr.write(`aex gate: ${msg}\n`);
+        process.exitCode = 2;
       }
     },
   );

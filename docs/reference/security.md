@@ -85,7 +85,7 @@ The `aex proxy` command enforces policy on MCP tool calls at the transport layer
 - **Audit logging** records every decision (allowed, denied, confirmed) as structured JSON to stderr.
 
 ```bash
-aex proxy --upstream "your-mcp-server" --policy .aex/policy.aex
+aex proxy --policy .aex/policy.aex -- your-mcp-server
 ```
 
 ## Resources

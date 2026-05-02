@@ -225,7 +225,7 @@ confirm before file.read
     expect(parsed.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          message: "Policy files cannot have need declarations",
+          message: expect.stringContaining("AEX120"),
         }),
       ]),
     );
@@ -257,7 +257,7 @@ return content
     expect(parsed.diagnostics).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          message: "Policy files cannot have execution steps",
+          message: expect.stringContaining("AEX120"),
         }),
       ]),
     );

@@ -81,7 +81,7 @@ describe("parseAEX", () => {
       if (error instanceof ParseFailure) {
         expect(error.diagnostics).toEqual(
           expect.arrayContaining([
-            expect.objectContaining({ message: "Missing agent declaration" }),
+            expect.objectContaining({ message: "Missing agent/task/policy declaration" }),
             expect.objectContaining({ message: "Missing goal declaration" }),
           ]),
         );
@@ -344,5 +344,102 @@ return done
         expect(ifOp.steps[0].op).toBe("check");
       }
     }
+  });
+});
+
+describe("task keyword", () => {
+  it("parses task header as a task document", () => {
+    const src = `task fix_test v0
+
+goal "Fix the test."
+
+use file.read, tests.run
+deny network.*
+
+need test_cmd: str
+
+do tests.run(cmd=test_cmd) -> result
+
+return result
+`;
+    const { task, diagnostics } = parseAEX(src);
+    expect(diagnostics).toHaveLength(0);
+    expect(task.agent).toEqual({ name: "fix_test", version: "0" });
+    expect(task.isPolicy).toBe(false);
+    expect(task.use).toEqual(["file.read", "tests.run"]);
+  });
+
+  it("legacy agent keyword still works", () => {
+    const src = `agent fix_test v0
+
+goal "Fix the test."
+
+use file.read
+
+return {}
+`;
+    const { task, diagnostics } = parseAEX(src);
+    expect(diagnostics).toHaveLength(0);
+    expect(task.agent).toEqual({ name: "fix_test", version: "0" });
+    expect(task.isPolicy).toBe(false);
+  });
+});
+
+describe("allow keyword", () => {
+  it("parses allow in policy documents", () => {
+    const src = `policy workspace v0
+
+goal "Default guardrails."
+
+allow file.read, file.write, tests.run
+deny network.*
+
+confirm before file.write
+
+budget calls=100
+`;
+    const { task, diagnostics } = parseAEX(src);
+    expect(diagnostics).toHaveLength(0);
+    expect(task.isPolicy).toBe(true);
+    expect(task.use).toEqual(["file.read", "file.write", "tests.run"]);
+    expect(task.deny).toEqual(["network.*"]);
+  });
+
+  it("emits AEX121 when allow is used in a task", () => {
+    const src = `task fix_test v0
+
+goal "Bad task."
+
+allow file.read
+
+return {}
+`;
+    const { diagnostics } = parseAEX(src, { tolerant: true });
+    expect(diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: expect.stringContaining("AEX121"),
+        }),
+      ]),
+    );
+  });
+
+  it("emits AEX120 when do is used in a policy", () => {
+    const src = `policy workspace v0
+
+goal "Bad policy."
+
+allow file.read
+
+do file.read(paths="README.md") -> content
+`;
+    const { diagnostics } = parseAEX(src, { tolerant: true });
+    expect(diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: expect.stringContaining("AEX120"),
+        }),
+      ]),
+    );
   });
 });

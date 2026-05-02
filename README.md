@@ -105,8 +105,11 @@ aex effective --contract tasks/fix-test.aex
 # Run with enforcement
 aex run tasks/fix-test.aex --inputs inputs.json --auto-confirm
 
-# Use as an MCP proxy for Claude Code / Codex
-aex proxy --upstream "your-mcp-server"
+# Enforce with Claude Code (built-in tools via hook)
+# In .claude/settings.json: { "hooks": { "PreToolUse": [{ "matcher": ".*", "command": "aex gate" }] } }
+
+# Enforce MCP tools via proxy
+aex proxy -- npx -y your-mcp-server
 ```
 
 The runtime enforces the intersection of policy and task permissions:
@@ -114,7 +117,8 @@ The runtime enforces the intersection of policy and task permissions:
 - tool calls outside the allowed set are blocked
 - confirmation gates halt execution until approved
 - call budgets stop execution when the limit is exceeded
-- `aex proxy` gates every MCP tool call against your `.aex/policy.aex`
+- `aex gate` gates Claude Code built-in tools (Read, Write, Bash, etc.)
+- `aex proxy` gates MCP tool calls against your `.aex/policy.aex`
 
 `aex fmt` keeps contracts deterministic (use `--check` in CI), and `aex sign`/`aex verify` attach HMAC-backed provenance metadata for governance workflows.
 

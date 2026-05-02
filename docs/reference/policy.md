@@ -122,12 +122,34 @@ The runtime emits audit log events documenting every decision: allowed tool call
 {"event":"budget.exhausted","calls_used":100,"budget":100}
 ```
 
+### Claude Code Hook Enforcement
+
+When using `aex gate` as a Claude Code `PreToolUse` hook, Claude Code's built-in tool names are mapped to AEX capabilities:
+
+| Claude Code Tool | AEX Capability |
+|------------------|----------------|
+| Read, Glob, Grep, LS | file.read |
+| Write, Edit, MultiEdit | file.write |
+| Bash | shell.exec |
+| WebFetch | network.fetch |
+| WebSearch | network.search |
+| Agent | agent.spawn |
+
+Write your policy using the AEX capability names. See the [Claude Code integration guide](/integrations/claude-code) for setup.
+
 ### MCP Proxy Enforcement
 
 When using `aex proxy`, the policy is enforced on every MCP tool call between your client (Claude Code, Codex) and upstream servers:
 
 ```bash
-aex proxy --upstream "your-mcp-server"
+aex proxy -- npx -y your-mcp-server
 ```
 
 The proxy auto-discovers `.aex/policy.aex` and gates `tools/call` requests against the effective permissions. See the [Claude Code](/integrations/claude-code) and [Codex](/integrations/codex) integration guides for setup details.
+
+## Keywords: `allow` vs `use`
+
+- In **policy** files, use `allow` to declare the ambient tool permissions.
+- In **task** files, use `use` to request tools for that specific task.
+- `use` in a policy file works as an alias for `allow` for backward compatibility.
+- `allow` in a task file is an error (AEX121) — tasks request tools, policies grant them.

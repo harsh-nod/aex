@@ -169,16 +169,22 @@ const result = await agent.run({
 ```
   </div>
   <div>
-    <h3><code>aex proxy</code> (MCP)</h3>
-    <p>Sit between Claude Code / Codex and upstream MCP servers, gating every tool call against your policy.</p>
+    <h3><code>aex gate</code> + <code>aex proxy</code></h3>
+    <p>Gate Claude Code built-in tools with hooks, MCP tools with the proxy — full coverage.</p>
 
-```bash
-# Auto-discovers .aex/policy.aex
-aex proxy --upstream "your-mcp-server"
-
-# With a task contract
-aex proxy --upstream "your-mcp-server" \
-  --contract tasks/fix-test.aex
+```json
+// .claude/settings.json
+{
+  "hooks": {
+    "PreToolUse": [{ "matcher": ".*", "command": "aex gate" }]
+  },
+  "mcpServers": {
+    "tools": {
+      "command": "aex",
+      "args": ["proxy", "--", "your-mcp-server"]
+    }
+  }
+}
 ```
   </div>
   <div>

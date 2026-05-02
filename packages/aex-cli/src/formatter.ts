@@ -43,6 +43,12 @@ export function formatTask(task: AEXTask): string {
     }
   }
 
+  if (task.budget && Object.keys(task.budget).length > 0) {
+    const budgetParts = Object.entries(task.budget)
+      .map(([key, value]) => `${key}=${value}`);
+    lines.push("", `budget ${budgetParts.join(", ")}`);
+  }
+
   const knownValues = new Set<string>(Object.keys(task.needs));
 
   task.steps.forEach((step) => {

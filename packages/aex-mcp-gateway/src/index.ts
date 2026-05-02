@@ -1,5 +1,5 @@
 import path from "node:path";
-import { parseFile, type ParseResult } from "@aex/parser";
+import { parseFile, type ParseResult, matchesAny } from "@aex/parser";
 
 export interface GatewaySummary {
   allowedTools: string[];
@@ -20,14 +20,14 @@ export class AEXMCPGateway {
 
   async allows(toolName: string): Promise<boolean> {
     const task = await this.loadTask();
-    const allowedByUse = matches(toolName, task.use);
-    const denied = matches(toolName, task.deny);
+    const allowedByUse = matchesAny(toolName, task.use);
+    const denied = matchesAny(toolName, task.deny);
     return allowedByUse && !denied;
   }
 
   async requiresConfirmation(toolName: string): Promise<boolean> {
     const summary = await this.summary();
-    return summary.confirmTools.some((pattern) => matches(toolName, [pattern]));
+    return matchesAny(toolName, summary.confirmTools);
   }
 
   async summary(): Promise<GatewaySummary> {
@@ -50,13 +50,4 @@ export class AEXMCPGateway {
     this.parsed = await parseFile(this.taskPath, { tolerant: true });
     return this.parsed.task;
   }
-}
-
-function matches(tool: string, patterns: string[]): boolean {
-  return patterns.some((pattern) => {
-    if (pattern.endsWith(".*")) {
-      return tool.startsWith(pattern.slice(0, -2));
-    }
-    return tool === pattern;
-  });
 }

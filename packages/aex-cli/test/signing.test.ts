@@ -23,4 +23,22 @@ describe("signing", () => {
     const invalid = await verifySignature(file, signature, "different");
     expect(invalid).toBe(false);
   });
+
+  it("rejects tampered signatures", async () => {
+    const file = await writeTempContract("agent bar v0\n\nreturn true\n");
+    const secret = "my-key";
+    const signature = await createSignature(file, "tester", secret);
+    const tampered = { ...signature, signature: "a".repeat(64) };
+    const valid = await verifySignature(file, tampered, secret);
+    expect(valid).toBe(false);
+  });
+
+  it("rejects when file content has changed", async () => {
+    const file = await writeTempContract("agent baz v0\n\nreturn true\n");
+    const secret = "my-key";
+    const signature = await createSignature(file, "tester", secret);
+    await fs.writeFile(file, "agent baz v0\n\nreturn false\n", "utf8");
+    const valid = await verifySignature(file, signature, secret);
+    expect(valid).toBe(false);
+  });
 });

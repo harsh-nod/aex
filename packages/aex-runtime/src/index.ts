@@ -6,19 +6,19 @@ import {
   AEXReturnStep,
   AEXConfirmStep,
   AEXStep,
+  matchesAny,
 } from "@aex/parser";
 import {
   validateParsed,
   ValidationIssue,
-  ValidationIssue as ValidatorIssue,
 } from "@aex/validator";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { exec as childExec } from "node:child_process";
+import { execFile as childExecFile } from "node:child_process";
 import { tmpdir } from "node:os";
 
-const exec = promisify(childExec);
+const execFile = promisify(childExecFile);
 
 export interface RuntimePolicy {
   allow?: string[];
@@ -87,9 +87,14 @@ interface ExecutionState {
   callBudget?: number;
 }
 
+interface PolicyPathRule {
+  tool: string;
+  pathPattern?: string;
+}
+
 interface NormalizedPolicy {
-  allow: string[] | undefined;
-  deny: string[];
+  allow: PolicyPathRule[] | undefined;
+  deny: PolicyPathRule[];
   requireConfirmation: string[];
   budgetCalls?: number;
 }
@@ -207,7 +212,8 @@ async function executeDo(
     };
   }
 
-  if (isDenied(toolName, [...task.deny, ...policy.deny])) {
+  const denyPatterns = [...task.deny, ...policy.deny.map((r) => r.tool)];
+  if (matchesAny(toolName, denyPatterns)) {
     return {
       status: "blocked",
       reason: `Tool "${toolName}" is denied by contract or policy.`,
@@ -547,8 +553,11 @@ function evaluateReturn(
       .filter((line) => !line.startsWith("//"));
     for (const pair of pairs) {
       const cleaned = pair.replace(/,$/, "");
-      const [rawKey, rawValue] = cleaned.split(":").map((part) => part.trim());
-      if (!rawKey || rawValue === undefined) continue;
+      const colonIndex = cleaned.indexOf(":");
+      if (colonIndex === -1) continue;
+      const rawKey = cleaned.substring(0, colonIndex).trim();
+      const rawValue = cleaned.substring(colonIndex + 1).trim();
+      if (!rawKey) continue;
       const key = rawKey.replace(/^["']|["']$/g, "");
       result[key] = resolveExpressionValue(rawValue, state);
     }
@@ -597,6 +606,36 @@ function resolveTool(
   return candidate;
 }
 
+const SHELL_CHAIN = /[;&|`$!<>]/;
+
+function validateCommand(cmd: string): string[] {
+  const parts = cmd.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    throw new Error("Empty command");
+  }
+  for (const part of parts) {
+    if (SHELL_CHAIN.test(part)) {
+      throw new Error(
+        `Command argument "${part}" contains shell metacharacters. ` +
+          `Only simple command + arguments are allowed.`,
+      );
+    }
+  }
+  return parts;
+}
+
+function assertWithinCwd(filePath: string): string {
+  const cwd = process.cwd();
+  const absolute = path.resolve(cwd, filePath);
+  const relative = path.relative(cwd, absolute);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(
+      `Path "${filePath}" resolves outside the working directory.`,
+    );
+  }
+  return absolute;
+}
+
 const builtinTools: ToolRegistry = {
   "file.read": {
     sideEffect: "read",
@@ -606,7 +645,7 @@ const builtinTools: ToolRegistry = {
       const resolved: Record<string, string> = {};
       for (const entry of pathList) {
         if (typeof entry !== "string") continue;
-        const absolute = path.resolve(process.cwd(), entry);
+        const absolute = assertWithinCwd(entry);
         resolved[entry] = await fs.readFile(absolute, "utf8");
       }
       return resolved;
@@ -619,7 +658,7 @@ const builtinTools: ToolRegistry = {
       if (writes.length > 0) {
         const written: string[] = [];
         for (const entry of writes) {
-          const absolute = path.resolve(process.cwd(), entry.path);
+          const absolute = assertWithinCwd(entry.path);
           await fs.mkdir(path.dirname(absolute), { recursive: true });
           await fs.writeFile(
             absolute,
@@ -657,8 +696,9 @@ const builtinTools: ToolRegistry = {
     sideEffect: "read",
     handler: async (args) => {
       const command = typeof args.cmd === "string" ? args.cmd : "npm test";
+      const parts = validateCommand(command);
       try {
-        const { stdout, stderr } = await exec(command, {
+        const { stdout, stderr } = await execFile(parts[0], parts.slice(1), {
           cwd: process.cwd(),
         });
         return {
@@ -686,7 +726,7 @@ const builtinTools: ToolRegistry = {
   "git.status": {
     sideEffect: "read",
     handler: async () => {
-      const { stdout } = await exec("git status --short", {
+      const { stdout } = await execFile("git", ["status", "--short"], {
         cwd: process.cwd(),
       });
       return stdout.trim().split("\n").filter(Boolean);
@@ -695,12 +735,19 @@ const builtinTools: ToolRegistry = {
   "git.diff": {
     sideEffect: "read",
     handler: async (args) => {
+      const gitArgs = ["diff"];
       const pathsArg = args.paths;
-      const extra =
-        Array.isArray(pathsArg) && pathsArg.length > 0
-          ? ` -- ${pathsArg.map((p) => `"${p}"`).join(" ")}`
-          : "";
-      const { stdout } = await exec(`git diff${extra}`, {
+      if (Array.isArray(pathsArg) && pathsArg.length > 0) {
+        gitArgs.push("--");
+        for (const p of pathsArg) {
+          if (typeof p !== "string") continue;
+          if (SHELL_CHAIN.test(p)) {
+            throw new Error(`Path "${p}" contains disallowed characters.`);
+          }
+          gitArgs.push(p);
+        }
+      }
+      const { stdout } = await execFile("git", gitArgs, {
         cwd: process.cwd(),
         maxBuffer: 10 * 1024 * 1024,
       });
@@ -733,47 +780,35 @@ const builtinTools: ToolRegistry = {
 
 type WriteEntry = { path: string; contents: string; encoding?: BufferEncoding };
 
-function normalizePolicy(policy?: RuntimePolicy): NormalizedPolicy {
+function parsePolicyEntry(entry: string): PolicyPathRule {
+  const colonIndex = entry.indexOf(":");
+  if (colonIndex === -1) {
+    return { tool: entry };
+  }
   return {
-    allow: policy?.allow?.map(stripPolicyQualifier),
-    deny: (policy?.deny ?? []).map(stripPolicyQualifier),
-    requireConfirmation: (policy?.require_confirmation ?? []).map(
-      stripPolicyQualifier,
-    ),
-    budgetCalls: policy?.budget?.calls,
+    tool: entry.substring(0, colonIndex),
+    pathPattern: entry.substring(colonIndex + 1),
   };
 }
 
-function stripPolicyQualifier(entry: string): string {
-  return entry.split(":")[0] ?? entry;
+function normalizePolicy(policy?: RuntimePolicy): NormalizedPolicy {
+  return {
+    allow: policy?.allow?.map(parsePolicyEntry),
+    deny: (policy?.deny ?? []).map(parsePolicyEntry),
+    requireConfirmation: policy?.require_confirmation ?? [],
+    budgetCalls: policy?.budget?.calls,
+  };
 }
 
 function isAllowed(
   tool: string,
   contractUse: string[],
-  policyAllow?: string[],
+  policyAllow?: PolicyPathRule[],
 ): boolean {
-  const contractAllows = matches(tool, contractUse);
+  const contractAllows = matchesAny(tool, contractUse);
   if (!contractAllows) return false;
   if (!policyAllow || policyAllow.length === 0) return true;
-  return matches(tool, policyAllow);
-}
-
-function isDenied(tool: string, denyList: string[]): boolean {
-  return matches(tool, denyList);
-}
-
-function matches(name: string, patterns: string[]): boolean {
-  return patterns.some((pattern) => matchPattern(name, pattern));
-}
-
-function matchPattern(name: string, pattern: string): boolean {
-  if (pattern === "*") return true;
-  if (pattern.endsWith(".*")) {
-    const prefix = pattern.slice(0, -2);
-    return name.startsWith(prefix);
-  }
-  return name === pattern;
+  return policyAllow.some((rule) => matchesAny(tool, [rule.tool]));
 }
 
 function resolvePath(pathExpr: string, state: ExecutionState): unknown {
@@ -827,7 +862,7 @@ function normalizeWritePayload(args: Record<string, unknown>): WriteEntry[] {
             path: record.path,
             contents: record.contents,
             encoding:
-              typeof record.encoding === "string" ? record.encoding : undefined,
+              typeof record.encoding === "string" ? record.encoding as BufferEncoding : undefined,
           });
         }
       } else if (typeof entry === "string") {
@@ -849,7 +884,7 @@ function normalizeWritePayload(args: Record<string, unknown>): WriteEntry[] {
             path: filePath,
             contents: inner.contents,
             encoding:
-              typeof inner.encoding === "string" ? inner.encoding : undefined,
+              typeof inner.encoding === "string" ? inner.encoding as BufferEncoding : undefined,
           });
         }
       }
@@ -864,7 +899,7 @@ function normalizeWritePayload(args: Record<string, unknown>): WriteEntry[] {
     entries.push({
       path: args.path,
       contents: args.contents,
-      encoding: typeof args.encoding === "string" ? args.encoding : undefined,
+      encoding: typeof args.encoding === "string" ? args.encoding as BufferEncoding : undefined,
     });
   }
 
@@ -878,7 +913,7 @@ async function applyDiff(
   const diffPath = path.join(tempDir, "patch.diff");
   try {
     await fs.writeFile(diffPath, diffText, "utf8");
-    await exec(`git apply --whitespace=nowarn "${diffPath}"`, {
+    await execFile("git", ["apply", "--whitespace=nowarn", diffPath], {
       cwd: process.cwd(),
       maxBuffer: 10 * 1024 * 1024,
     });
@@ -899,12 +934,12 @@ function extractTouchedFiles(patch: unknown): string[] {
     for (const line of lines) {
       const diffMatch = /^diff --git a\/(.+?) b\/(.+)$/.exec(line.trim());
       if (diffMatch) {
-        files.add(normalizePath(diffMatch[2]));
+        files.add(normalizeFilePath(diffMatch[2]));
         continue;
       }
       const newFileMatch = /^\+\+\+\s+b\/(.+)$/.exec(line.trim());
       if (newFileMatch) {
-        files.add(normalizePath(newFileMatch[1]));
+        files.add(normalizeFilePath(newFileMatch[1]));
       }
     }
     return [...files];
@@ -913,14 +948,14 @@ function extractTouchedFiles(patch: unknown): string[] {
   if (Array.isArray(patch)) {
     for (const entry of patch) {
       if (typeof entry === "string") {
-        files.add(normalizePath(entry));
+        files.add(normalizeFilePath(entry));
       } else if (entry && typeof entry === "object") {
         const candidate =
           (entry as Record<string, unknown>).path ??
           (entry as Record<string, unknown>).file ??
           (entry as Record<string, unknown>).newPath;
         if (typeof candidate === "string") {
-          files.add(normalizePath(candidate));
+          files.add(normalizeFilePath(candidate));
         }
       }
     }
@@ -933,7 +968,7 @@ function extractTouchedFiles(patch: unknown): string[] {
       return extractTouchedFiles(record.files);
     }
     if (typeof record.path === "string") {
-      files.add(normalizePath(record.path));
+      files.add(normalizeFilePath(record.path));
       return [...files];
     }
   }
@@ -978,7 +1013,7 @@ function isValidDiff(value: unknown): boolean {
   return false;
 }
 
-function normalizePath(filePath: string): string {
+function normalizeFilePath(filePath: string): string {
   return filePath.replace(/^(\.\/)+/, "");
 }
 

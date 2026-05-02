@@ -5,6 +5,7 @@ import {
   AEXTask,
   AEXDoStep,
   AEXMakeStep,
+  matchesAny,
 } from "@aex/parser";
 
 export interface ValidationIssue {
@@ -110,7 +111,7 @@ function checkToolPermissions(
   deniedTools: Set<string>,
   issues: ValidationIssue[],
 ) {
-  if (!matchesList(step.tool, allowedTools)) {
+  if (!matchesAny(step.tool, allowedTools)) {
     issues.push({
       message: `Tool "${step.tool}" is not declared in use.`,
       line: step.line,
@@ -119,7 +120,7 @@ function checkToolPermissions(
     });
   }
 
-  if (matchesList(step.tool, deniedTools)) {
+  if (matchesAny(step.tool, deniedTools)) {
     issues.push({
       message: `Tool "${step.tool}" is denied by the contract.`,
       line: step.line,
@@ -146,19 +147,4 @@ function checkInputs(
       });
     }
   }
-}
-
-function matchesList(value: string, list: Set<string>): boolean {
-  if (list.has(value)) {
-    return true;
-  }
-  for (const entry of list) {
-    if (entry.endsWith(".*")) {
-      const prefix = entry.slice(0, -2);
-      if (value.startsWith(prefix)) {
-        return true;
-      }
-    }
-  }
-  return false;
 }

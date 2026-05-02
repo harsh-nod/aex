@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import chalk from "chalk";
 import { compileTask, parseFile, ParseError } from "@aex/parser";
 import { ValidationIssue, validateText } from "@aex/validator";
 import { runTask, RuntimePolicy, ConfirmationHandler } from "@aex/runtime";
@@ -18,7 +17,17 @@ import {
   SignatureMetadata,
 } from "./signing.js";
 
-type AjvError = import("ajv").ErrorObject;
+const useColor =
+  process.env.NO_COLOR === undefined &&
+  process.env.FORCE_COLOR !== "0" &&
+  (process.stdout.isTTY ?? false);
+
+const c = {
+  red: (s: string) => (useColor ? `\x1b[31m${s}\x1b[0m` : s),
+  green: (s: string) => (useColor ? `\x1b[32m${s}\x1b[0m` : s),
+  yellow: (s: string) => (useColor ? `\x1b[33m${s}\x1b[0m` : s),
+  cyan: (s: string) => (useColor ? `\x1b[36m${s}\x1b[0m` : s),
+};
 
 const program = new Command();
 
@@ -48,7 +57,7 @@ program
     await writeIfMissing(policyPath, `${JSON.stringify(SAMPLE_POLICY, null, 2)}\n`);
 
     process.stdout.write(
-      `${chalk.green("✔")} Starter files created under ${tasksDir}${EOL_WITH_NEWLINE}`,
+      `${c.green("✔")} Starter files created under ${tasksDir}\n`,
     );
   });
 
@@ -64,7 +73,7 @@ program
       });
       printDiagnostics(result.diagnostics);
       process.stdout.write(
-        `${JSON.stringify(result.task, null, 2)}${EOL_WITH_NEWLINE}`,
+        `${JSON.stringify(result.task, null, 2)}\n`,
       );
     } catch (error) {
       handleError(error);
@@ -94,15 +103,15 @@ program
       const result = await parseFile(resolveInput(file), { tolerant: true });
       printDiagnostics(result.diagnostics);
       const ir = compileTask(result.task);
-      const issues = await validateAgainstSchema("IR", irSchema, ir);
+      const issues = validateIR(ir);
       if (issues.length > 0) {
         for (const issue of issues) {
-          process.stderr.write(`${chalk.red("error")} ${issue}${EOL_WITH_NEWLINE}`);
+          process.stderr.write(`${c.red("error")} ${issue}\n`);
         }
         process.exitCode = 1;
         return;
       }
-      process.stdout.write(`${JSON.stringify(ir, null, 2)}${EOL_WITH_NEWLINE}`);
+      process.stdout.write(`${JSON.stringify(ir, null, 2)}\n`);
     } catch (error) {
       handleError(error);
     }
@@ -131,13 +140,13 @@ program
       const { errors, warnings } = partitionIssues(result.issues);
       for (const warning of warnings) {
         process.stderr.write(
-          `${chalk.yellow("warn")} ${formatIssue(warning)}${EOL_WITH_NEWLINE}`,
+          `${c.yellow("warn")} ${formatIssue(warning)}\n`,
         );
       }
       if (errors.length > 0) {
         for (const issue of errors) {
           process.stderr.write(
-            `${chalk.red("error")} ${formatIssue(issue)}${EOL_WITH_NEWLINE}`,
+            `${c.red("error")} ${formatIssue(issue)}\n`,
           );
         }
         failed = true;
@@ -147,7 +156,7 @@ program
       if (options.check) {
         if (result.formatted !== result.original) {
           process.stderr.write(
-            `${chalk.red("diff")} ${resolved} is not formatted${EOL_WITH_NEWLINE}`,
+            `${c.red("diff")} ${resolved} is not formatted\n`,
           );
           failed = true;
         }
@@ -157,20 +166,20 @@ program
       if (result.formatted !== result.original) {
         await fs.writeFile(resolved, result.formatted, "utf8");
         process.stdout.write(
-          `${chalk.green("formatted")} ${resolved}${EOL_WITH_NEWLINE}`,
+          `${c.green("formatted")} ${resolved}\n`,
         );
         changed = true;
       }
     }
 
     if (options.check && !failed) {
-      process.stdout.write(`${chalk.green("✔")} All files are formatted\n`);
+      process.stdout.write(`${c.green("✔")} All files are formatted\n`);
     }
 
     if (failed) {
       process.exitCode = 1;
     } else if (changed && !options.check) {
-      process.stdout.write(`${chalk.green("✔")} Formatting applied\n`);
+      process.stdout.write(`${c.green("✔")} Formatting applied\n`);
     }
   });
 
@@ -202,11 +211,11 @@ program
         );
         await fs.writeFile(
           outputPath,
-          `${JSON.stringify(metadata, null, 2)}${EOL_WITH_NEWLINE}`,
+          `${JSON.stringify(metadata, null, 2)}\n`,
           "utf8",
         );
         process.stdout.write(
-          `${chalk.green("signed")} ${resolved} -> ${outputPath}${EOL_WITH_NEWLINE}`,
+          `${c.green("signed")} ${resolved} -> ${outputPath}\n`,
         );
       } catch (error) {
         handleError(error);
@@ -250,11 +259,11 @@ program
         const valid = await verifySignature(resolved, payload, secret);
         if (valid) {
           process.stdout.write(
-            `${chalk.green("✔")} Signature verified for ${resolved}${EOL_WITH_NEWLINE}`,
+            `${c.green("✔")} Signature verified for ${resolved}\n`,
           );
         } else {
           process.stderr.write(
-            `${chalk.red("invalid")} Signature verification failed${EOL_WITH_NEWLINE}`,
+            `${c.red("invalid")} Signature verification failed\n`,
           );
           process.exitCode = 1;
         }
@@ -301,16 +310,16 @@ program
         });
         if (result.status === "blocked") {
           process.stderr.write(
-            `${chalk.yellow("runtime blocked")}: ${result.issues.join(
+            `${c.yellow("runtime blocked")}: ${result.issues.join(
               ", ",
-            )}${EOL_WITH_NEWLINE}`,
+            )}\n`,
           );
           process.exitCode = 1;
         } else {
-          process.stdout.write(`${chalk.green("runtime success")}\n`);
+          process.stdout.write(`${c.green("runtime success")}\n`);
           if (result.output !== undefined) {
             process.stdout.write(
-              `${JSON.stringify(result.output, null, 2)}${EOL_WITH_NEWLINE}`,
+              `${JSON.stringify(result.output, null, 2)}\n`,
             );
           }
         }
@@ -322,8 +331,6 @@ program
 
 void program.parseAsync(process.argv);
 
-const EOL_WITH_NEWLINE = "\n";
-
 function resolveInput(inputPath: string): string {
   return path.isAbsolute(inputPath)
     ? inputPath
@@ -333,9 +340,9 @@ function resolveInput(inputPath: string): string {
 function printDiagnostics(diagnostics: ParseError[]) {
   for (const diagnostic of diagnostics) {
     process.stderr.write(
-      `${chalk.yellow("diag")} line ${diagnostic.line || "-"} ${
+      `${c.yellow("diag")} line ${diagnostic.line || "-"} ${
         diagnostic.message
-      }${EOL_WITH_NEWLINE}`,
+      }\n`,
     );
   }
 }
@@ -351,18 +358,18 @@ function partitionIssues(issues: ValidationIssue[]): {
 
 function reportIssues(issues: ValidationIssue[]) {
   if (issues.length === 0) {
-    process.stdout.write(`${chalk.green("✔")} Contract is valid\n`);
+    process.stdout.write(`${c.green("✔")} Contract is valid\n`);
     return;
   }
   const { errors, warnings } = partitionIssues(issues);
   for (const issue of errors) {
     process.stderr.write(
-      `${chalk.red("error")} ${formatIssue(issue)}${EOL_WITH_NEWLINE}`,
+      `${c.red("error")} ${formatIssue(issue)}\n`,
     );
   }
   for (const issue of warnings) {
     process.stderr.write(
-      `${chalk.yellow("warn")} ${formatIssue(issue)}${EOL_WITH_NEWLINE}`,
+      `${c.yellow("warn")} ${formatIssue(issue)}\n`,
     );
   }
   process.exitCode = errors.length > 0 ? 1 : 0;
@@ -376,15 +383,74 @@ function formatIssue(issue: ValidationIssue): string {
   return parts.join(" · ");
 }
 
+function validateIR(data: unknown): string[] {
+  const issues: string[] = [];
+  if (!data || typeof data !== "object") {
+    issues.push("IR must be an object.");
+    return issues;
+  }
+  const ir = data as Record<string, unknown>;
+  const schema = irSchema as Record<string, unknown>;
+  const required = (schema.required ?? []) as string[];
+  for (const field of required) {
+    if (!(field in ir)) {
+      issues.push(`IR is missing required field "${field}".`);
+    }
+  }
+  if (!Array.isArray(ir.steps)) {
+    issues.push('IR "steps" must be an array.');
+  }
+  if (ir.permissions && typeof ir.permissions === "object") {
+    const perms = ir.permissions as Record<string, unknown>;
+    if (!Array.isArray(perms.use)) issues.push('"permissions.use" must be an array.');
+    if (!Array.isArray(perms.deny)) issues.push('"permissions.deny" must be an array.');
+  }
+  return issues;
+}
+
+function validatePolicyData(data: unknown): string[] {
+  const issues: string[] = [];
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    issues.push("Policy must be an object.");
+    return issues;
+  }
+  const policy = data as Record<string, unknown>;
+  const _schema = policySchema;
+  const allowedKeys = new Set(["allow", "deny", "require_confirmation", "budget"]);
+  for (const key of Object.keys(policy)) {
+    if (!allowedKeys.has(key)) {
+      issues.push(`Unknown policy field "${key}".`);
+    }
+  }
+  for (const arrayField of ["allow", "deny", "require_confirmation"]) {
+    if (arrayField in policy && !Array.isArray(policy[arrayField])) {
+      issues.push(`"${arrayField}" must be an array.`);
+    }
+  }
+  if ("budget" in policy) {
+    if (!policy.budget || typeof policy.budget !== "object" || Array.isArray(policy.budget)) {
+      issues.push('"budget" must be an object.');
+    } else {
+      const budget = policy.budget as Record<string, unknown>;
+      for (const [key, value] of Object.entries(budget)) {
+        if (typeof value !== "number" || value < 0) {
+          issues.push(`Budget "${key}" must be a non-negative number.`);
+        }
+      }
+    }
+  }
+  return issues;
+}
+
 async function loadPolicy(filePath: string): Promise<RuntimePolicy> {
   const raw = await fs.readFile(filePath, "utf8");
   const parsed = JSON.parse(raw);
-  const issues = await validateAgainstSchema("policy", policySchema, parsed);
+  const issues = validatePolicyData(parsed);
   if (issues.length > 0) {
     for (const issue of issues) {
-      process.stderr.write(`${chalk.red("error")} ${issue}${EOL_WITH_NEWLINE}`);
+      process.stderr.write(`${c.red("error")} ${issue}\n`);
     }
-    throw new Error("Policy file failed schema validation.");
+    throw new Error("Policy file failed validation.");
   }
   return parsed as RuntimePolicy;
 }
@@ -425,7 +491,7 @@ function createPromptConfirmHandler(): ConfirmationHandler | undefined {
     });
     try {
       const answer = await rl.question(
-        `${chalk.yellow("confirm")} Allow tool "${toolName}"? [y/N]: `,
+        `${c.yellow("confirm")} Allow tool "${toolName}"? [y/N]: `,
       );
       return answer.trim().toLowerCase().startsWith("y");
     } finally {
@@ -437,76 +503,24 @@ function createPromptConfirmHandler(): ConfirmationHandler | undefined {
 function logEvent(event: { event: string; data?: Record<string, unknown> }) {
   const payload = event.data ? JSON.stringify(event.data) : "";
   process.stdout.write(
-    `${chalk.cyan(event.event.padEnd(16))} ${payload}${EOL_WITH_NEWLINE}`,
+    `${c.cyan(event.event.padEnd(16))} ${payload}\n`,
   );
 }
 
 function handleError(error: unknown) {
   if (error instanceof Error) {
-    process.stderr.write(`${chalk.red("error")} ${error.message}\n`);
+    process.stderr.write(`${c.red("error")} ${error.message}\n`);
   } else {
-    process.stderr.write(`${chalk.red("error")} ${String(error)}\n`);
+    process.stderr.write(`${c.red("error")} ${String(error)}\n`);
   }
   process.exitCode = 1;
-}
-
-async function validateAgainstSchema(
-  label: string,
-  schema: unknown,
-  data: unknown,
-): Promise<string[]> {
-  const validator = await getValidator(schema);
-  const valid = validator(data);
-  if (valid) {
-    return [];
-  }
-  return formatAjvErrors(label, validator.errors);
-}
-
-const validatorCache = new WeakMap<object, any>();
-let ajvInstancePromise: Promise<any> | null = null;
-
-async function getValidator(schema: unknown): Promise<any> {
-  if (typeof schema !== "object" || schema === null) {
-    throw new Error("Invalid schema definition.");
-  }
-  const cached = validatorCache.get(schema as object);
-  if (cached) {
-    return cached;
-  }
-  const AjvConstructor = await loadAjv();
-  const validator = AjvConstructor.compile(schema);
-  validatorCache.set(schema as object, validator);
-  return validator;
-}
-
-async function loadAjv() {
-  if (!ajvInstancePromise) {
-    ajvInstancePromise = import("ajv").then((mod) => {
-      const AjvCtor = (mod.default ?? mod) as unknown as {
-        new (options: Record<string, unknown>): any;
-      };
-      return new AjvCtor({ allErrors: true, strict: false });
-    });
-  }
-  return ajvInstancePromise;
-}
-
-function formatAjvErrors(label: string, errors: AjvError[] | null | undefined) {
-  if (!errors || errors.length === 0) {
-    return [`${label} validation failed.`];
-  }
-  return errors.map((err) => {
-    const location = err.instancePath && err.instancePath.length > 0 ? err.instancePath : "/";
-    return `${label} ${location}: ${err.message ?? "Unknown error"}`;
-  });
 }
 
 async function writeIfMissing(filePath: string, contents: string) {
   try {
     await fs.access(filePath);
     process.stderr.write(
-      `${chalk.yellow("skip")} ${path.relative(process.cwd(), filePath)} already exists${EOL_WITH_NEWLINE}`,
+      `${c.yellow("skip")} ${path.relative(process.cwd(), filePath)} already exists\n`,
     );
   } catch {
     await fs.writeFile(filePath, contents, "utf8");

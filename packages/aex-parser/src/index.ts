@@ -1,5 +1,7 @@
 import { promises as fs } from "node:fs";
 
+export { matchPattern, matchesAny } from "./match.js";
+
 export interface ParseError {
   message: string;
   line: number;

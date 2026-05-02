@@ -54,4 +54,25 @@ do file.write(contents=\"ok\", path=file_path) -> write_result
 return { status: \"done\", files: write_result.written }"
 `);
   });
+
+  it("preserves budget declarations", () => {
+    const source = `agent budgeted v0
+
+goal "Budget test"
+
+use web.search
+
+need question: str
+
+budget calls=8
+
+do web.search(q=question) -> hits
+
+return hits
+`;
+
+    const parsed = parseAEX(source, { tolerant: true });
+    const formatted = formatTask(parsed.task);
+    expect(formatted).toContain("budget calls=8");
+  });
 });

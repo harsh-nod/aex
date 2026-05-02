@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createHash, createHmac } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 export interface SignatureMetadata {
   schema: "aex/signature@v1";
@@ -52,5 +52,11 @@ export async function verifySignature(
   const expectedSignature = createHmac("sha256", secret)
     .update(metadata.hash, "utf8")
     .digest("hex");
-  return expectedSignature === metadata.signature;
+  if (expectedSignature.length !== metadata.signature.length) {
+    return false;
+  }
+  return timingSafeEqual(
+    Buffer.from(expectedSignature, "utf8"),
+    Buffer.from(metadata.signature, "utf8"),
+  );
 }

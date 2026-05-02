@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harsh-nod.github.io/aex/schemas/aex-ir-v0.json",
+  "type": "object",
+  "required": ["version", "agent", "permissions", "needs", "steps"],
+  "$defs": {
+    "value": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "array", "items": { "$ref": "#/$defs/value" } },
+        { "type": "object", "additionalProperties": { "$ref": "#/$defs/value" } },
+        {
+          "type": "object",
+          "required": ["var"],
+          "properties": {
+            "var": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["op", "tool", "args"],
+          "properties": {
+            "op": { "const": "call" },
+            "tool": { "type": "string" },
+            "args": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/value" }
+            },
+            "bind": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "bind", "type", "inputs", "instructions"],
+          "properties": {
+            "op": { "const": "make" },
+            "bind": { "type": "string" },
+            "type": { "type": "string" },
+            "inputs": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "instructions": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "condition"],
+          "properties": {
+            "op": { "const": "check" },
+            "condition": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "tool"],
+          "properties": {
+            "op": { "const": "confirm" },
+            "tool": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "value"],
+          "properties": {
+            "op": { "const": "return" },
+            "value": { "$ref": "#/$defs/value" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "condition", "steps"],
+          "properties": {
+            "op": { "const": "if" },
+            "condition": { "type": "string" },
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "variable", "iterable", "steps"],
+          "properties": {
+            "op": { "const": "for" },
+            "variable": { "type": "string" },
+            "iterable": { "type": "string" },
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "properties": {
+    "version": { "type": "string" },
+    "agent": { "type": "string" },
+    "goal": { "type": "string" },
+    "permissions": {
+      "type": "object",
+      "required": ["use", "deny"],
+      "properties": {
+        "use": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "deny": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "needs": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/step" }
+    },
+    "return": { "$ref": "#/$defs/value" }
+  },
+  "additionalProperties": false
+}

@@ -16,6 +16,7 @@ make patch: diff from failure, sources with:
   - preserve public behavior
   - do not touch unrelated files
 
+check patch is valid diff
 check patch touches only target_files
 confirm before file.write
 

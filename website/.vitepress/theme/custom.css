@@ -518,3 +518,40 @@ a:hover {
     gap: 1.35rem;
   }
 }
+
+/* Pre-release banner */
+.pre-release-banner {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+  color: #1a1a1a;
+  text-align: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  position: relative;
+  z-index: 100;
+}
+
+.pre-release-banner a {
+  color: #1a1a1a;
+  text-decoration: underline;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.pre-release-banner a:hover {
+  color: #000;
+}
+
+.dark .pre-release-banner {
+  background: linear-gradient(90deg, #b45309, #92400e);
+  color: #fef3c7;
+}
+
+.dark .pre-release-banner a {
+  color: #fef3c7;
+}
+
+.dark .pre-release-banner a:hover {
+  color: #fff;
+}

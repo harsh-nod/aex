@@ -73,6 +73,8 @@ export default defineConfig({
           text: "Integrations",
           items: [
             { text: "Overview", link: "/integrations/" },
+            { text: "Claude Code", link: "/integrations/claude-code" },
+            { text: "Codex CLI", link: "/integrations/codex" },
             { text: "MCP Gateway", link: "/integrations/mcp" },
             { text: "OpenAI Agents SDK", link: "/integrations/openai-agents" },
             { text: "LangGraph", link: "/integrations/langgraph" },

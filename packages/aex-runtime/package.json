@@ -1,6 +1,6 @@
 {
   "name": "@aex-lang/runtime",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Local runtime for executing AEX contracts",
   "license": "MIT",
   "repository": {

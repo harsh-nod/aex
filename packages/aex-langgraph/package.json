@@ -1,6 +1,6 @@
 {
   "name": "@aex-lang/langgraph",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "LangGraph compiler for AEX contracts",
   "license": "MIT",
   "repository": {

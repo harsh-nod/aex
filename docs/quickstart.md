@@ -4,12 +4,19 @@ The goal: run your first AEX contract in under five minutes.
 
 ## Install
 
+AEX is not yet published to npm. Install from source:
+
 ```bash
+git clone https://github.com/harsh-nod/aex.git
+cd aex
 npm install
 npm run build
+npm link --workspace @aex-lang/cli
 ```
 
-Publishing to npm will arrive once the MVP solidifies.
+After `npm link`, the `aex` command is available on your PATH.
+
+> Once published, this becomes: `npm install -g @aex-lang/cli`
 
 ## Create a Task
 
@@ -92,12 +99,56 @@ npm test
 ```bash
 aex run tasks/fix-test.aex \
   --inputs examples/fix-test/inputs.json \
-  --policy examples/fix-test/policy.json
+  --policy examples/fix-test/policy.json \
+  --auto-confirm
 ```
 
-The runtime enforces contract permissions and policy budgets. If a step requires confirmation (`confirm before`), provide a confirmation handler when integrating with your agent runtime or pass `--auto-confirm` when testing locally. Otherwise the CLI blocks the run and reports that confirmation is required.
+The runtime enforces contract permissions and policy budgets. Without `--auto-confirm`, the CLI blocks at `confirm before file.write` and reports that confirmation is required.
 
-The runtime will log every tool call and check.
+### Audit Log
+
+The runtime logs every tool call and check to stdout:
+
+```json
+{"event":"run.started","agent":"fix_test","version":"v0"}
+{"event":"tool.allowed","tool":"tests.run","step":1}
+{"event":"tool.result","tool":"tests.run","bind":"failure"}
+{"event":"tool.allowed","tool":"file.read","step":2}
+{"event":"tool.result","tool":"file.read","bind":"sources"}
+{"event":"make.result","bind":"patch","type":"diff"}
+{"event":"check.passed","condition":"patch is valid diff"}
+{"event":"check.passed","condition":"patch touches only target_files"}
+{"event":"confirm.required","tool":"file.write"}
+{"event":"confirm.approved","tool":"file.write"}
+{"event":"tool.allowed","tool":"file.write","step":3}
+{"event":"tool.result","tool":"file.write","bind":"result"}
+{"event":"tool.allowed","tool":"tests.run","step":4}
+{"event":"tool.result","tool":"tests.run","bind":"final"}
+{"event":"check.passed","condition":"final.passed"}
+{"event":"run.finished","status":"success"}
+```
+
+## How `make` Works
+
+`make` steps ask a model to generate an artifact (like a diff or a draft). When you run `aex run`, the runtime delegates `make` to a **model handler**.
+
+**Default behavior:** Without a model handler, `aex run` blocks at the first `make` step and reports that no model handler is configured.
+
+**Using OpenAI:**
+
+```bash
+export AEX_MODEL=openai
+export OPENAI_API_KEY=sk-...
+aex run tasks/fix-test.aex --inputs examples/fix-test/inputs.json --policy examples/fix-test/policy.json
+```
+
+**Using a custom handler:**
+
+```bash
+aex run tasks/fix-test.aex --model-handler ./my-handler.ts
+```
+
+A model handler is a function that receives the `make` step description (type, inputs, instructions) and returns the generated artifact. See the [OpenAI Agents integration](/integrations/openai-agents) for a full example.
 
 ## Sign and Verify the Contract
 

@@ -71,6 +71,9 @@
   --aex-sidebar-bg: rgba(7, 11, 28, 0.92);
   --aex-sidebar-border: rgba(78, 112, 255, 0.28);
 
+  --vp-nav-bg-color: rgba(7, 11, 28, 0.92);
+  --vp-sidebar-bg-color: rgba(7, 11, 28, 0.92);
+
   --aex-panel-bg: rgba(9, 14, 37, 0.78);
   --aex-panel-border: rgba(78, 112, 255, 0.18);
   --aex-panel-shadow: 0 -26px 60px rgba(0, 0, 0, 0.45);

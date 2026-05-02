@@ -1,22 +1,32 @@
 # Roadmap
 
-This roadmap outlines the near-term priorities for AEX adoption.
+## Shipped
 
 1. **Runtime parity with production agents**
-   - [x] Confirm additional built-in checks (`patch touches only`, diff linting)
-   - [x] Expand tool registry (structured `file.write`, resilient `tests.run`, `git.*`)
-   - [x] Ship JSON IR execution in more adapters
+   - [x] Built-in checks (`patch touches only`, diff linting)
+   - [x] Tool registry (`file.write`, `tests.run`, `git.diff`, `git.apply`)
+   - [x] JSON IR execution in adapters
 2. **Adapter ecosystem**
-   - [x] OpenAI Agents SDK beta (`@aex/openai-agents`)
-   - [x] MCP gateway for server-side policies (`@aex/mcp-gateway`)
+   - [x] OpenAI Agents SDK (`@aex/openai-agents`)
+   - [x] MCP gateway (`@aex/mcp-gateway`)
    - [x] LangGraph compiler (`@aex/langgraph`)
 3. **Developer experience**
    - [x] `aex fmt` auto-formatter
-   - [x] richer CLI diagnostics with error codes
+   - [x] CLI diagnostics with error codes
    - [x] VS Code extension (syntax highlighting, snippets, hover docs)
+   - [x] Interactive playground on docs site
 4. **Security & governance**
-   - [x] threat-model reference implementation demos
-   - [x] signed task contracts and provenance metadata
-   - [x] compatibility tests across runtimes
+   - [x] Threat-model reference implementation
+   - [x] Signed contracts and provenance metadata
+   - [x] Command injection and path traversal prevention
+   - [x] Timing-safe signature verification
 
-Contributions are welcome—open an issue if you’d like to tackle an item or propose a new milestone.
+## Up Next
+
+- Loops and conditional branching in the DSL (`if`, `for`)
+- `aex run` support for remote tool registries
+- Policy inheritance and composition across contracts
+- Structured logging and OpenTelemetry export from `aex run`
+- npm package publishing for all adapters
+
+Contributions are welcome — open an issue if you'd like to tackle an item or propose a new milestone.

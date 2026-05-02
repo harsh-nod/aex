@@ -23,6 +23,13 @@ export default defineConfig({
   markdown: {
     languages: [aexGrammar],
   },
+  vite: {
+    resolve: {
+      alias: {
+        "node:fs": resolve(__dirname, "stubs/fs.js"),
+      },
+    },
+  },
   themeConfig: {
     logo: {
       text: "AEX"
@@ -34,7 +41,8 @@ export default defineConfig({
       { text: "CLI", link: "/reference/cli" },
       { text: "Integrations", link: "/integrations/" },
       { text: "Policy", link: "/reference/policy" },
-      { text: "Security", link: "/reference/security" }
+      { text: "Security", link: "/reference/security" },
+      { text: "Playground", link: "/playground" }
     ],
     sidebar: {
       "/": [
@@ -78,6 +86,12 @@ export default defineConfig({
             { text: "Policy", link: "/reference/policy" },
             { text: "Security Model", link: "/reference/security" },
             { text: "CLI Reference", link: "/reference/cli" }
+          ]
+        },
+        {
+          text: "Tools",
+          items: [
+            { text: "Playground", link: "/playground" }
           ]
         },
         {

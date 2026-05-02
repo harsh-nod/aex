@@ -16,6 +16,7 @@ import {
   verifySignature,
   SignatureMetadata,
 } from "./signing.js";
+import { resolveModelHandler } from "./models/index.js";
 
 const useColor =
   process.env.NO_COLOR === undefined &&
@@ -282,6 +283,8 @@ program
     "--auto-confirm",
     "Automatically approve confirmation gates (use with caution)",
   )
+  .option("--model <provider>", "Model provider for make steps (openai, anthropic)")
+  .option("--model-handler <path>", "Path to a custom model handler module")
   .description("Execute an AEX contract using the local runtime (experimental)")
   .action(
     async (
@@ -290,6 +293,8 @@ program
         policy?: string;
         inputs?: string;
         autoConfirm?: boolean;
+        model?: string;
+        modelHandler?: string;
       },
     ) => {
       try {
@@ -302,9 +307,14 @@ program
         const confirmHandler = options.autoConfirm
           ? alwaysApproveConfirmation
           : createPromptConfirmHandler();
+        const modelHandler = await resolveModelHandler(
+          options.model,
+          options.modelHandler,
+        );
         const result = await runTask(resolveInput(file), {
           policy,
           inputs,
+          model: modelHandler,
           confirm: confirmHandler,
           logger: logEvent,
         });

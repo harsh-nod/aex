@@ -559,3 +559,78 @@ describe("matchesAny", () => {
     expect(matchesAny("file.read", ["network.*", "shell.*"])).toBe(false);
   });
 });
+
+describe("budget enforcement", () => {
+  it("blocks when contract budget is exceeded", async () => {
+    const taskPath = await writeTempTask(`agent budget_test v0
+
+goal "Test budget"
+
+use tests.success
+
+budget calls=1
+
+do tests.success(input=val) -> r1
+do tests.success(input=val) -> r2
+
+return r2
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: { val: "ok" },
+      tools: TOOLS,
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.issues[0]).toContain("budget exhausted");
+  });
+
+  it("allows execution within budget", async () => {
+    const taskPath = await writeTempTask(`agent budget_ok v0
+
+goal "Within budget"
+
+use tests.success
+
+budget calls=5
+
+do tests.success(input=val) -> r1
+
+check r1.success
+
+return r1
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: { val: "ok" },
+      tools: TOOLS,
+    });
+
+    expect(result.status).toBe("success");
+  });
+
+  it("policy budget overrides when lower than contract", async () => {
+    const taskPath = await writeTempTask(`agent budget_policy v0
+
+goal "Policy override"
+
+use tests.success
+
+budget calls=10
+
+do tests.success(input=val) -> r1
+do tests.success(input=val) -> r2
+
+return r2
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: { val: "ok" },
+      tools: TOOLS,
+      policy: { budget: { calls: 1 } },
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.issues[0]).toContain("budget exhausted");
+  });
+});

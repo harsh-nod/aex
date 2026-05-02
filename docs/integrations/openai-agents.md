@@ -1,9 +1,9 @@
 # OpenAI Agents SDK
 
-Use the [`@aex/openai-agents`](https://github.com/harsh-nod/aex/tree/main/packages/aex-openai-agents) package to wrap an existing tool-enabled agent with an AEX guardrail.
+Use the [`@aex-lang/openai-agents`](https://github.com/harsh-nod/aex/tree/main/packages/aex-openai-agents) package to wrap an existing tool-enabled agent with an AEX guardrail.
 
 ```ts
-import { AEXGuardedAgent } from "@aex/openai-agents";
+import { AEXGuardedAgent } from "@aex-lang/openai-agents";
 import { fileReadTool, fileWriteTool } from "./tools";
 
 const agent = new AEXGuardedAgent({

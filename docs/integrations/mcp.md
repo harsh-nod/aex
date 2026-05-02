@@ -1,9 +1,9 @@
 # MCP Gateway
 
-The [`@aex/mcp-gateway`](https://github.com/harsh-nod/aex/tree/main/packages/aex-mcp-gateway) package helps you answer permission questions before forwarding tool calls to MCP servers.
+The [`@aex-lang/mcp-gateway`](https://github.com/harsh-nod/aex/tree/main/packages/aex-mcp-gateway) package helps you answer permission questions before forwarding tool calls to MCP servers.
 
 ```ts
-import { AEXMCPGateway } from "@aex/mcp-gateway";
+import { AEXMCPGateway } from "@aex-lang/mcp-gateway";
 
 const gateway = new AEXMCPGateway("tasks/support-ticket.aex");
 

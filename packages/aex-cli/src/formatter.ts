@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
-import { parseFile, ParseResult, AEXStep, AEXTask } from "@aex/parser";
-import { validateParsed } from "@aex/validator";
+import { parseFile, ParseResult, AEXStep, AEXTask } from "@aex-lang/parser";
+import { validateParsed } from "@aex-lang/validator";
 
 export interface FormatResult {
   formatted: string;

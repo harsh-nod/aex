@@ -7,11 +7,11 @@ import {
   AEXConfirmStep,
   AEXStep,
   matchesAny,
-} from "@aex/parser";
+} from "@aex-lang/parser";
 import {
   validateParsed,
   ValidationIssue,
-} from "@aex/validator";
+} from "@aex-lang/validator";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";

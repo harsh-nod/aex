@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { compileTask, parseFile, ParseError } from "@aex/parser";
-import { ValidationIssue, validateText } from "@aex/validator";
-import { runTask, RuntimePolicy, ConfirmationHandler } from "@aex/runtime";
+import { compileTask, parseFile, ParseError } from "@aex-lang/parser";
+import { ValidationIssue, validateText } from "@aex-lang/validator";
+import { runTask, RuntimePolicy, ConfirmationHandler } from "@aex-lang/runtime";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import process from "node:process";

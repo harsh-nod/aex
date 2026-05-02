@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseAEX } from "@aex/parser";
-import { validateParsed, ValidationIssue } from "@aex/validator";
+import { parseAEX } from "@aex-lang/parser";
+import { validateParsed, ValidationIssue } from "@aex-lang/validator";
 
 const BASE_CONTRACT = `agent sample v0
 

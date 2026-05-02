@@ -1,5 +1,5 @@
 {
-  "name": "@aex/runtime",
+  "name": "@aex-lang/runtime",
   "version": "0.0.1",
   "description": "Local runtime for executing AEX contracts",
   "type": "module",
@@ -15,8 +15,8 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@aex/parser": "file:../aex-parser",
-    "@aex/validator": "file:../aex-validator"
+    "@aex-lang/parser": "file:../aex-parser",
+    "@aex-lang/validator": "file:../aex-validator"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

@@ -1,6 +1,6 @@
 import path from "node:path";
-import { parseFile, AEXTask, AEXStep } from "@aex/parser";
-import { validateParsed } from "@aex/validator";
+import { parseFile, AEXTask, AEXStep } from "@aex-lang/parser";
+import { validateParsed } from "@aex-lang/validator";
 
 export interface LangGraphNode {
   id: string;

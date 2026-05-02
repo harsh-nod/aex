@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAEX, ParseFailure, compileTask } from "@aex/parser";
+import { parseAEX, ParseFailure, compileTask } from "@aex-lang/parser";
 
 const SAMPLE_TASK = `agent fix_test v0
 

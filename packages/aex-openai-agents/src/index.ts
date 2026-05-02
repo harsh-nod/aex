@@ -1,5 +1,5 @@
 import path from "node:path";
-import { runTask, type ToolRegistry, type RuntimePolicy, type ModelHandler, type RunResult, type RunOptions } from "@aex/runtime";
+import { runTask, type ToolRegistry, type RuntimePolicy, type ModelHandler, type RunResult, type RunOptions } from "@aex-lang/runtime";
 
 export interface AEXGuardedAgentOptions {
   /**

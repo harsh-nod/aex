@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { parseAEX, compileTask } from "@aex/parser";
-import { validateText } from "@aex/validator";
+import { parseAEX, compileTask } from "@aex-lang/parser";
+import { validateText } from "@aex-lang/validator";
 
 const EXAMPLES = [
   {

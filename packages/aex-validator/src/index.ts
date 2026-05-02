@@ -6,7 +6,7 @@ import {
   AEXDoStep,
   AEXMakeStep,
   matchesAny,
-} from "@aex/parser";
+} from "@aex-lang/parser";
 
 export interface ValidationIssue {
   message: string;

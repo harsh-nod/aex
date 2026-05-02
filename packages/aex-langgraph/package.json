@@ -1,5 +1,5 @@
 {
-  "name": "@aex/langgraph",
+  "name": "@aex-lang/langgraph",
   "version": "0.0.1",
   "description": "LangGraph compiler for AEX contracts",
   "type": "module",
@@ -14,7 +14,7 @@
     "test": "vitest run --dir test"
   },
   "dependencies": {
-    "@aex/parser": "file:../aex-parser",
-    "@aex/validator": "file:../aex-validator"
+    "@aex-lang/parser": "file:../aex-parser",
+    "@aex-lang/validator": "file:../aex-validator"
   }
 }

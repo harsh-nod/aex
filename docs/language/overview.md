@@ -44,7 +44,7 @@ Inputs are required at runtime before the contract executes.
 - `confirm`: require human approval before a tool call
 - `return`: finish the contract with typed data
 
-`make` steps are executed through the runtime's `model` handler. When you integrate via the CLI or adapters (for example `@aex/openai-agents`), you provide a function that takes the `make` step description and returns the generated artifact.
+`make` steps are executed through the runtime's `model` handler. When you integrate via the CLI or adapters (for example `@aex-lang/openai-agents`), you provide a function that takes the `make` step description and returns the generated artifact.
 
 Example:
 

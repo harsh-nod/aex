@@ -5,8 +5,8 @@ import path from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 import { execFile as childExecFile } from "node:child_process";
-import { runTask, ToolRegistry } from "@aex/runtime";
-import { parseFile, matchPattern, matchesAny } from "@aex/parser";
+import { runTask, ToolRegistry } from "@aex-lang/runtime";
+import { parseFile, matchPattern, matchesAny } from "@aex-lang/parser";
 import { taskToLangGraph } from "../../aex-langgraph/src/index.js";
 
 const execFile = promisify(childExecFile);

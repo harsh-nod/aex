@@ -7,9 +7,9 @@
    - [x] Tool registry (`file.write`, `tests.run`, `git.diff`, `git.apply`)
    - [x] JSON IR execution in adapters
 2. **Adapter ecosystem**
-   - [x] OpenAI Agents SDK (`@aex/openai-agents`)
-   - [x] MCP gateway (`@aex/mcp-gateway`)
-   - [x] LangGraph compiler (`@aex/langgraph`)
+   - [x] OpenAI Agents SDK (`@aex-lang/openai-agents`)
+   - [x] MCP gateway (`@aex-lang/mcp-gateway`)
+   - [x] LangGraph compiler (`@aex-lang/langgraph`)
 3. **Developer experience**
    - [x] `aex fmt` auto-formatter
    - [x] CLI diagnostics with error codes

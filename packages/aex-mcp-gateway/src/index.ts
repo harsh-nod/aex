@@ -1,5 +1,5 @@
 import path from "node:path";
-import { parseFile, type ParseResult, matchesAny } from "@aex/parser";
+import { parseFile, type ParseResult, matchesAny } from "@aex-lang/parser";
 
 export interface GatewaySummary {
   allowedTools: string[];

@@ -1,5 +1,5 @@
 {
-  "name": "@aex/website",
+  "name": "@aex-lang/website",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -9,8 +9,8 @@
     "preview": "vitepress preview"
   },
   "dependencies": {
-    "@aex/parser": "file:../packages/aex-parser",
-    "@aex/validator": "file:../packages/aex-validator"
+    "@aex-lang/parser": "file:../packages/aex-parser",
+    "@aex-lang/validator": "file:../packages/aex-validator"
   },
   "devDependencies": {
     "vitepress": "^1.1.4"

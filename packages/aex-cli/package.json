@@ -1,5 +1,5 @@
 {
-  "name": "@aex/cli",
+  "name": "@aex-lang/cli",
   "version": "0.0.1",
   "description": "Command-line interface for AEX contracts",
   "bin": {
@@ -18,9 +18,9 @@
     "test": "vitest run --dir test"
   },
   "dependencies": {
-    "@aex/parser": "file:../aex-parser",
-    "@aex/runtime": "file:../aex-runtime",
-    "@aex/validator": "file:../aex-validator",
+    "@aex-lang/parser": "file:../aex-parser",
+    "@aex-lang/runtime": "file:../aex-runtime",
+    "@aex-lang/validator": "file:../aex-validator",
     "commander": "^12.0.0"
   },
   "devDependencies": {

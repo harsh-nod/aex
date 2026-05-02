@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAEX } from "@aex/parser";
+import { parseAEX } from "@aex-lang/parser";
 import { formatTask } from "../src/formatter.js";
 
 describe("formatter", () => {

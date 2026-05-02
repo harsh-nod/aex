@@ -14,9 +14,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@aex/parser": `${rootDir}packages/aex-parser/src/index.ts`,
-      "@aex/validator": `${rootDir}packages/aex-validator/src/index.ts`,
-      "@aex/runtime": `${rootDir}packages/aex-runtime/src/index.ts`
+      "@aex-lang/parser": `${rootDir}packages/aex-parser/src/index.ts`,
+      "@aex-lang/validator": `${rootDir}packages/aex-validator/src/index.ts`,
+      "@aex-lang/runtime": `${rootDir}packages/aex-runtime/src/index.ts`
     }
   }
 });

@@ -1,5 +1,5 @@
 {
-  "name": "@aex/monorepo",
+  "name": "@aex-lang/monorepo",
   "version": "0.0.0",
   "private": true,
   "workspaces": [
@@ -7,14 +7,14 @@
     "website"
   ],
   "scripts": {
-    "build": "npm run build -w @aex/parser && npm run build -w @aex/validator && npm run build -w @aex/runtime && npm run build -w @aex/cli && npm run build -w @aex/openai-agents && npm run build -w @aex/mcp-gateway && npm run build -w @aex/langgraph",
-    "dev": "npm run dev -w @aex/cli",
-    "lint": "npm run lint -w @aex/cli",
+    "build": "npm run build -w @aex-lang/parser && npm run build -w @aex-lang/validator && npm run build -w @aex-lang/runtime && npm run build -w @aex-lang/cli && npm run build -w @aex-lang/openai-agents && npm run build -w @aex-lang/mcp-gateway && npm run build -w @aex-lang/langgraph",
+    "dev": "npm run dev -w @aex-lang/cli",
+    "lint": "npm run lint -w @aex-lang/cli",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:cli": "npm run test -w @aex/cli",
-    "docs:dev": "npm run dev -w @aex/website",
-    "docs:build": "npm run build -w @aex/website"
+    "test:cli": "npm run test -w @aex-lang/cli",
+    "docs:dev": "npm run dev -w @aex-lang/website",
+    "docs:build": "npm run build -w @aex-lang/website"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",

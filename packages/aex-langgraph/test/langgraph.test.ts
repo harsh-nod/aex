@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { compileFileToLangGraph, taskToLangGraph } from "../src/index.js";
-import type { AEXTask } from "@aex/parser";
+import type { AEXTask } from "@aex-lang/parser";
 
 async function writeContract(contents: string): Promise<string> {
   const dir = await fs.mkdtemp(path.join(tmpdir(), "aex-langgraph-"));

@@ -3,7 +3,7 @@
 Compile an AEX contract into a guarded LangGraph flow. Each `do`, `make`, `check`, and `confirm` step becomes a typed node in the resulting plan.
 
 ```ts
-import { compileFileToLangGraph } from "@aex/langgraph";
+import { compileFileToLangGraph } from "@aex-lang/langgraph";
 
 const plan = await compileFileToLangGraph("tasks/fix-test.aex");
 const graph = new LangGraph(plan);

@@ -1,5 +1,5 @@
 {
-  "name": "@aex/validator",
+  "name": "@aex-lang/validator",
   "version": "0.0.1",
   "description": "Static validator for AEX contracts",
   "type": "module",
@@ -21,7 +21,7 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@aex/parser": "file:../aex-parser"
+    "@aex-lang/parser": "file:../aex-parser"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

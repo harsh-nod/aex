@@ -27,7 +27,7 @@ title: AEX Overview
   </article>
   <article class="card">
     <h3>LangGraph Ready</h3>
-    <p>Compile any contract into a LangGraph plan via <code>@aex/langgraph</code> and drop it into existing agent graphs.</p>
+    <p>Compile any contract into a LangGraph plan via <code>@aex-lang/langgraph</code> and drop it into existing agent graphs.</p>
   </article>
   <article class="card">
     <h3>CLI Ergonomics</h3>
@@ -90,11 +90,11 @@ return {
 
 <div class="integrations">
   <div>
-    <h3><code>@aex/openai-agents</code></h3>
+    <h3><code>@aex-lang/openai-agents</code></h3>
     <p>Wrap your OpenAI Agents SDK workflows with an AEX guardrail.</p>
 
 ```ts
-import { AEXGuardedAgent } from "@aex/openai-agents";
+import { AEXGuardedAgent } from "@aex-lang/openai-agents";
 
 const agent = new AEXGuardedAgent({
   taskPath: "tasks/support-ticket.aex",
@@ -108,11 +108,11 @@ const result = await agent.run({
 ```
   </div>
   <div>
-    <h3><code>@aex/mcp-gateway</code></h3>
+    <h3><code>@aex-lang/mcp-gateway</code></h3>
     <p>Enforce AEX contracts in front of MCP servers before forwarding tool calls.</p>
 
 ```ts
-import { AEXMCPGateway } from "@aex/mcp-gateway";
+import { AEXMCPGateway } from "@aex-lang/mcp-gateway";
 
 const gateway = new AEXMCPGateway("tasks/support-ticket.aex");
 
@@ -122,11 +122,11 @@ if (!(await gateway.allows("email.send"))) {
 ```
   </div>
   <div>
-    <h3><code>@aex/langgraph</code></h3>
+    <h3><code>@aex-lang/langgraph</code></h3>
     <p>Compile contracts straight into LangGraph plans for agent orchestration.</p>
 
 ```ts
-import { compileFileToLangGraph } from "@aex/langgraph";
+import { compileFileToLangGraph } from "@aex-lang/langgraph";
 
 const plan = await compileFileToLangGraph("tasks/fix-test.aex");
 langGraph.load(plan);
@@ -137,7 +137,7 @@ langGraph.load(plan);
 ## What's New
 
 - Built-in diff-aware checks, structured `file.write`, and git helpers in the local runtime.
-- `@aex/langgraph` compiler so contracts can power LangGraph workflows immediately.
+- `@aex-lang/langgraph` compiler so contracts can power LangGraph workflows immediately.
 - `aex fmt`, richer CLI diagnostics, and a companion VS Code extension.
 - `aex sign` / `aex verify` provenance metadata plus a security-focused threat-monitor example.
 

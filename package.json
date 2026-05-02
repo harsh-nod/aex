@@ -13,8 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cli": "npm run test -w @aex-lang/cli",
-    "docs:dev": "npm run dev -w @aex-lang/website",
-    "docs:build": "npm run build -w @aex-lang/website"
+    "docs:dev": "vitepress dev website",
+    "docs:build": "vitepress build website"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",

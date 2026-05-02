@@ -389,6 +389,61 @@ a:hover {
   color: var(--vp-c-text-2);
 }
 
+.demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin: 2rem 0 2.5rem;
+}
+
+@media (max-width: 768px) {
+  .demo-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.demo-panel {
+  border-radius: 14px;
+  padding: 1.5rem;
+  border: 1px solid var(--aex-card-border);
+  background: var(--aex-card-bg);
+}
+
+.demo-panel h4 {
+  font-family: var(--vp-font-family-heading);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  letter-spacing: 0.03em;
+}
+
+.demo-danger {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.demo-danger h4 {
+  color: #ef4444;
+}
+
+.dark .demo-danger {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.demo-safe {
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.demo-safe h4 {
+  color: #22c55e;
+}
+
+.dark .demo-safe {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.06);
+}
+
 @media (max-width: 960px) {
   .hero-intro {
     padding: 4.25rem 1.25rem 3rem;

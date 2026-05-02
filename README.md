@@ -46,17 +46,22 @@ return {
 - **Portable:** Works alongside OpenAI Agents SDK, MCP, LangGraph, GitHub Actions, and any custom runtime.
 - **Diffable:** Task contracts live as text files, reviewable like code.
 
-## Install (pre-release)
-
-The CLI is under active development. Clone the repo and run scripts locally:
+## Install
 
 ```bash
-git clone https://github.com/harsh-nod/aex.git
-cd aex
-npm install
-npm run build
-# Run parser/validator/runtime tests
-npm test
+npm install -g @aex-lang/cli
+```
+
+Or run without installing:
+
+```bash
+npx @aex-lang/cli check tasks/fix-test.aex
+```
+
+All `@aex-lang/*` packages are published on npm. To install individual packages:
+
+```bash
+npm install @aex-lang/parser @aex-lang/runtime
 ```
 
 ## Quickstart
@@ -91,7 +96,7 @@ When you run a contract, the runtime enforces the intersection of contract permi
 
 ## Status
 
-AEX is pre-release software. Expect rapid iteration as the parser, validator, runtime, and adapters land.
+AEX is pre-release software (v0.0.1). All packages are published on npm under the `@aex-lang` scope. Expect API changes before v1.0.
 
 ## Documentation
 

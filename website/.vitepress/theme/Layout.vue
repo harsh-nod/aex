@@ -5,8 +5,8 @@ const { Layout } = DefaultTheme;
 
 <template>
   <div class="pre-release-banner">
-    AEX is in pre-release &mdash; APIs may change and packages are not yet published to npm.
-    <a href="/aex/community/roadmap">See the roadmap &rarr;</a>
+    The CLI is published on npm (<code>npm i -g @aex-lang/cli</code>). APIs are experimental and may change before v1.0.
+    <a href="/aex/community/roadmap">Roadmap &rarr;</a>
   </div>
   <Layout />
 </template>

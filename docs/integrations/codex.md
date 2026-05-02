@@ -1,10 +1,10 @@
 # Codex CLI
 
-Use AEX contracts to enforce guardrails on [OpenAI Codex CLI](https://github.com/openai/codex) sessions. AEX validates tool permissions before execution, blocks denied actions, and produces audit logs.
+AEX contracts pair with [OpenAI Codex CLI](https://github.com/openai/codex) to declare what a task is allowed to do. Use `aex check` for static validation before a Codex run, and `aex run` for full runtime enforcement with tool blocking, budgets, and confirmation gates.
 
 ## How It Works
 
-Codex CLI runs agents that can read files, write code, and execute commands. AEX contracts define what each task is allowed to do. You validate contracts before the agent runs and enforce policies during execution.
+Codex CLI runs agents that can read files, write code, and execute commands. AEX contracts declare what each task is allowed to do. You validate contracts before the agent runs with `aex check`, and use `aex run` when you want the AEX runtime to enforce permissions directly.
 
 ## Setup
 

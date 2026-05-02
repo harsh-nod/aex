@@ -2,7 +2,7 @@
 
 ## Implemented in Repo
 
-> These features exist in the source code but packages are **not yet published to npm** and APIs are **not yet stable**.
+> All `@aex-lang/*` packages are **published on npm** (v0.0.1). APIs are **not yet stable** — expect breaking changes before v1.0.
 
 1. **Runtime**
    - [x] Built-in checks (`patch touches only`, diff linting)
@@ -50,13 +50,11 @@
 
 ## Up Next
 
-- Publish `@aex-lang/*` packages to npm (requires npm org setup)
 - Stable API guarantees (v1.0 milestone)
 - Independent security audit
 
 ## Not Yet Done
 
-- npm packages are not published (config ready, needs credentials)
 - No stable API guarantees
 - No independent security audit
 

@@ -4,19 +4,17 @@ The goal: run your first AEX contract in under five minutes.
 
 ## Install
 
-AEX is not yet published to npm. Install from source:
-
 ```bash
-git clone https://github.com/harsh-nod/aex.git
-cd aex
-npm install
-npm run build
-npm link --workspace @aex-lang/cli
+npm install -g @aex-lang/cli
 ```
 
-After `npm link`, the `aex` command is available on your PATH.
+Or run without installing:
 
-> Once published, this becomes: `npm install -g @aex-lang/cli`
+```bash
+npx @aex-lang/cli check tasks/fix-test.aex
+```
+
+After a global install, the `aex` command is available on your PATH.
 
 ## Create a Task
 
@@ -84,14 +82,6 @@ Add `--check` to ensure formatting during CI without rewriting files:
 
 ```bash
 aex fmt tasks/fix-test.aex --check
-```
-
-## Run Parser Tests
-
-Verify the parser and validator behave as expected:
-
-```bash
-npm test
 ```
 
 ## Run It

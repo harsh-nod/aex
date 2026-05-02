@@ -82,7 +82,7 @@ AEX does not rely on the model to follow instructions. The runtime enforces `den
 ## Quick Win
 
 ```bash
-npm install
+npm install -g @aex-lang/cli
 aex init --task fix-test
 aex check tasks/fix-test.aex
 aex run tasks/fix-test.aex --inputs tasks/fix-test.inputs.json --policy tasks/fix-test.policy.json --auto-confirm

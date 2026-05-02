@@ -1,10 +1,10 @@
 # Claude Code
 
-Use AEX contracts to enforce guardrails on [Claude Code](https://docs.anthropic.com/en/docs/claude-code) sessions. AEX validates tool permissions, blocks denied actions, and logs every decision — complementing the guidance you put in `CLAUDE.md` with machine-enforceable policy.
+AEX contracts pair with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to declare what a task is allowed to do. You can validate contracts statically with `aex check`, run full enforcement via `aex run`, or wire either into Claude Code hooks as a pre-flight gate.
 
 ## How It Works
 
-Claude Code supports **hooks** — shell commands that run before or after tool calls. You can wire `aex check` and `aex run` into these hooks to validate contracts automatically.
+Claude Code supports **hooks** — shell commands that run before or after tool calls. You can wire `aex check` into a hook to validate that a contract is well-formed before each tool call. For full runtime enforcement (tool blocking, budget limits, confirmation gates), use `aex run` separately.
 
 ## Setup
 
@@ -55,7 +55,7 @@ In your `.claude/settings.json`:
 }
 ```
 
-This runs `aex check` before every tool call, catching contract violations before they execute.
+This runs `aex check` before every tool call, validating that the contract is well-formed. Note: `aex check` performs static validation (syntax, semantics, permission consistency) — it does not intercept or block Claude Code's own tool calls at runtime.
 
 ### 3. Run with policy enforcement
 
@@ -70,16 +70,16 @@ aex run tasks/code-review.aex \
 
 ## Pairing with CLAUDE.md
 
-`CLAUDE.md` provides natural-language guidance that Claude follows voluntarily. AEX contracts provide machine-enforced constraints that the runtime blocks on violation.
+`CLAUDE.md` provides natural-language guidance that Claude follows voluntarily. AEX contracts declare permissions in a structured DSL that `aex run` enforces deterministically.
 
 | Aspect | CLAUDE.md | AEX Contract |
 |--------|-----------|--------------|
 | Format | Free-form markdown | Structured DSL |
-| Enforcement | Best-effort (model follows instructions) | Deterministic (runtime blocks violations) |
+| Enforcement | Best-effort (model follows instructions) | Deterministic when run via `aex run` |
 | Scope | Session-wide guidance | Per-task permissions |
 | Audit | No built-in logging | Every step logged as structured JSON |
 
-Use both together: `CLAUDE.md` for project-wide conventions, AEX for security-critical task boundaries.
+Use both together: `CLAUDE.md` for project-wide conventions, AEX for declaring and enforcing task-level permissions via `aex run`.
 
 ## Structured Logging
 

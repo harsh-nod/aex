@@ -20,6 +20,96 @@
           "additionalProperties": false
         }
       ]
+    },
+    "step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["op", "tool", "args"],
+          "properties": {
+            "op": { "const": "call" },
+            "tool": { "type": "string" },
+            "args": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/value" }
+            },
+            "bind": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "bind", "type", "inputs", "instructions"],
+          "properties": {
+            "op": { "const": "make" },
+            "bind": { "type": "string" },
+            "type": { "type": "string" },
+            "inputs": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "instructions": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "condition"],
+          "properties": {
+            "op": { "const": "check" },
+            "condition": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "tool"],
+          "properties": {
+            "op": { "const": "confirm" },
+            "tool": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "value"],
+          "properties": {
+            "op": { "const": "return" },
+            "value": { "$ref": "#/$defs/value" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "condition", "steps"],
+          "properties": {
+            "op": { "const": "if" },
+            "condition": { "type": "string" },
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "variable", "iterable", "steps"],
+          "properties": {
+            "op": { "const": "for" },
+            "variable": { "type": "string" },
+            "iterable": { "type": "string" },
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/step" }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "properties": {
@@ -51,69 +141,7 @@
     },
     "steps": {
       "type": "array",
-      "items": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": ["op", "tool", "args"],
-            "properties": {
-              "op": { "const": "call" },
-              "tool": { "type": "string" },
-              "args": {
-                "type": "object",
-                "additionalProperties": { "$ref": "#/$defs/value" }
-              },
-              "bind": { "type": "string" }
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": ["op", "bind", "type", "inputs", "instructions"],
-            "properties": {
-              "op": { "const": "make" },
-              "bind": { "type": "string" },
-              "type": { "type": "string" },
-              "inputs": {
-                "type": "array",
-                "items": { "type": "string" }
-              },
-              "instructions": {
-                "type": "array",
-                "items": { "type": "string" }
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": ["op", "condition"],
-            "properties": {
-              "op": { "const": "check" },
-              "condition": { "type": "string" }
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": ["op", "tool"],
-            "properties": {
-              "op": { "const": "confirm" },
-              "tool": { "type": "string" }
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": ["op", "value"],
-            "properties": {
-              "op": { "const": "return" },
-              "value": { "$ref": "#/$defs/value" }
-            },
-            "additionalProperties": false
-          }
-        ]
-      }
+      "items": { "$ref": "#/$defs/step" }
     },
     "return": { "$ref": "#/$defs/value" }
   },

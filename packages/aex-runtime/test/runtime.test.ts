@@ -553,6 +553,113 @@ describe("matchPattern", () => {
   });
 });
 
+describe("if/for control flow", () => {
+  it("executes if body when condition is true", async () => {
+    const taskPath = await writeTempTask(`agent if_true v0
+
+goal "If true"
+
+use tests.success
+
+need val: str
+
+do tests.success(input=val) -> result
+
+if result.success
+  do tests.success(input=val) -> inner
+
+return inner
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: { val: "yes" },
+      tools: TOOLS,
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.output).toEqual({ success: true });
+  });
+
+  it("skips if body when condition is false", async () => {
+    const taskPath = await writeTempTask(`agent if_false v0
+
+goal "If false"
+
+use tests.success, tests.fail
+
+need val: str
+
+do tests.fail() -> result
+
+if result.success
+  do tests.success(input=val) -> inner
+
+return result
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: { val: "yes" },
+      tools: TOOLS,
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.output).toEqual({ success: false });
+  });
+
+  it("iterates for loop over list", async () => {
+    const events: Array<Record<string, unknown>> = [];
+    const taskPath = await writeTempTask(`agent for_loop v0
+
+goal "Loop"
+
+use context.load
+
+need items: list[str]
+
+for item in items
+  do context.load(key=item) -> loaded
+
+return loaded
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: { items: ["a", "b", "c"], a: "A", b: "B", c: "C" },
+      tools: TOOLS,
+      logger: (event) => events.push(event.data ?? {}),
+    });
+
+    expect(result.status).toBe("success");
+    const forEvents = events.filter((e) => "count" in e);
+    expect(forEvents[0]).toEqual({ variable: "item", count: 3 });
+  });
+
+  it("budget counts per for iteration", async () => {
+    const taskPath = await writeTempTask(`agent for_budget v0
+
+goal "Budget in loop"
+
+use tests.success
+
+need items: list[str]
+
+budget calls=2
+
+for item in items
+  do tests.success(input=item) -> r
+
+return r
+`);
+
+    const result = await runTask(taskPath, {
+      inputs: { items: ["a", "b", "c"] },
+      tools: TOOLS,
+    });
+
+    expect(result.status).toBe("blocked");
+    expect(result.issues[0]).toContain("budget exhausted");
+  });
+});
+
 describe("matchesAny", () => {
   it("returns true when any pattern matches", () => {
     expect(matchesAny("file.read", ["network.*", "file.*"])).toBe(true);

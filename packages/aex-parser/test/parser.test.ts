@@ -216,4 +216,133 @@ return {
       }),
     );
   });
+
+  it("parses if statements with indented body", () => {
+    const source = `agent cond v0
+
+goal "Conditional"
+
+use tests.run, file.read
+
+need value: str
+
+do tests.run(cmd=value) -> result
+
+if result.failed
+  do file.read(paths=value) -> content
+  check content
+
+return result
+`;
+
+    const { task, diagnostics } = parseAEX(source);
+    expect(diagnostics).toHaveLength(0);
+
+    const ifStep = task.steps.find((s) => s.kind === "if");
+    expect(ifStep).toBeDefined();
+    if (ifStep?.kind === "if") {
+      expect(ifStep.condition).toBe("result.failed");
+      expect(ifStep.body).toHaveLength(2);
+      expect(ifStep.body[0].kind).toBe("do");
+      expect(ifStep.body[1].kind).toBe("check");
+    }
+  });
+
+  it("parses for statements with indented body", () => {
+    const source = `agent loop v0
+
+goal "Loop"
+
+use file.read
+
+need files: list[file]
+
+for f in files
+  do file.read(path=f) -> content
+  check content
+
+return done
+`;
+
+    const { task, diagnostics } = parseAEX(source);
+    expect(diagnostics).toHaveLength(0);
+
+    const forStep = task.steps.find((s) => s.kind === "for");
+    expect(forStep).toBeDefined();
+    if (forStep?.kind === "for") {
+      expect(forStep.variable).toBe("f");
+      expect(forStep.iterable).toBe("files");
+      expect(forStep.body).toHaveLength(2);
+      expect(forStep.body[0].kind).toBe("do");
+      expect(forStep.body[1].kind).toBe("check");
+    }
+  });
+
+  it("parses nested if inside for", () => {
+    const source = `agent nested v0
+
+goal "Nested"
+
+use file.read, tests.run
+
+need items: list[str]
+
+for item in items
+  do tests.run(cmd=item) -> result
+  if result.failed
+    do file.read(path=item) -> content
+
+return done
+`;
+
+    const { task, diagnostics } = parseAEX(source);
+    expect(diagnostics).toHaveLength(0);
+
+    const forStep = task.steps.find((s) => s.kind === "for");
+    expect(forStep).toBeDefined();
+    if (forStep?.kind === "for") {
+      expect(forStep.body).toHaveLength(2);
+      expect(forStep.body[0].kind).toBe("do");
+      const nestedIf = forStep.body[1];
+      expect(nestedIf.kind).toBe("if");
+      if (nestedIf.kind === "if") {
+        expect(nestedIf.condition).toBe("result.failed");
+        expect(nestedIf.body).toHaveLength(1);
+        expect(nestedIf.body[0].kind).toBe("do");
+      }
+    }
+  });
+
+  it("compiles if and for to IR", () => {
+    const source = `agent ctrl v0
+
+goal "Control flow"
+
+use file.read
+
+need files: list[file]
+
+for f in files
+  do file.read(path=f) -> content
+  if content
+    check content
+
+return done
+`;
+
+    const { task } = parseAEX(source);
+    const ir = compileTask(task);
+
+    const forOp = ir.steps.find((s) => s.op === "for");
+    expect(forOp).toBeDefined();
+    if (forOp && "steps" in forOp) {
+      expect(forOp.steps).toHaveLength(2);
+      const ifOp = forOp.steps.find((s) => s.op === "if");
+      expect(ifOp).toBeDefined();
+      if (ifOp && "steps" in ifOp) {
+        expect(ifOp.steps).toHaveLength(1);
+        expect(ifOp.steps[0].op).toBe("check");
+      }
+    }
+  });
 });

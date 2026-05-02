@@ -65,7 +65,8 @@ export function formatTask(task: AEXTask): string {
   return lines.filter((line, index, array) => !(line === "" && array[index - 1] === "")).join("\n").replace(/^\n+/, "");
 }
 
-function formatStep(step: AEXStep, knownValues: Set<string>): string[] {
+function formatStep(step: AEXStep, knownValues: Set<string>, indent = 0): string[] {
+  const prefix = "  ".repeat(indent);
   switch (step.kind) {
     case "do": {
       const pairs = Object.entries(step.args)
@@ -75,27 +76,41 @@ function formatStep(step: AEXStep, knownValues: Set<string>): string[] {
             `${key}=${formatArgValue(value, knownValues)}`,
         );
       const suffix = step.bind ? ` -> ${step.bind}` : "";
-      return [`do ${step.tool}(${pairs.join(", ")})${suffix}`];
+      return [`${prefix}do ${step.tool}(${pairs.join(", ")})${suffix}`];
     }
     case "make": {
       const sources = step.inputs.join(", ");
-      const header = `make ${step.bind}: ${step.type} from ${sources} with:`;
-      const instructions = step.instructions.map((item) => `  - ${item}`);
+      const header = `${prefix}make ${step.bind}: ${step.type} from ${sources} with:`;
+      const instructions = step.instructions.map((item) => `${prefix}  - ${item}`);
       return [header, ...instructions];
     }
     case "check":
-      return [`check ${step.condition}`];
+      return [`${prefix}check ${step.condition}`];
     case "confirm":
-      return [`confirm before ${step.before}`];
+      return [`${prefix}confirm before ${step.before}`];
     case "return": {
       const expression = step.expression.trim();
       if (expression.includes("\n")) {
         const body = expression
           .split("\n")
-          .map((line, index) => (index === 0 ? line : `  ${line}`));
-        return [`return ${body.shift()}`, ...body];
+          .map((line, index) => (index === 0 ? line : `${prefix}  ${line}`));
+        return [`${prefix}return ${body.shift()}`, ...body];
       }
-      return [`return ${expression}`];
+      return [`${prefix}return ${expression}`];
+    }
+    case "if": {
+      const lines = [`${prefix}if ${step.condition}`];
+      for (const bodyStep of step.body) {
+        lines.push(...formatStep(bodyStep, knownValues, indent + 1));
+      }
+      return lines;
+    }
+    case "for": {
+      const lines = [`${prefix}for ${step.variable} in ${step.iterable}`];
+      for (const bodyStep of step.body) {
+        lines.push(...formatStep(bodyStep, knownValues, indent + 1));
+      }
+      return lines;
     }
     default:
       return [];

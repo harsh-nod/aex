@@ -5,6 +5,8 @@ import {
   AEXMakeStep,
   AEXReturnStep,
   AEXConfirmStep,
+  AEXIfStep,
+  AEXForStep,
   AEXStep,
   matchesAny,
 } from "@aex-lang/parser";
@@ -190,6 +192,10 @@ async function executeStep(
       return { status: "continue" };
     case "return":
       return executeReturn(step, state);
+    case "if":
+      return executeIf(step, state);
+    case "for":
+      return executeFor(step, state);
     default:
       return {
         status: "blocked",
@@ -332,6 +338,55 @@ function executeReturn(
 ): StepResult {
   const output = evaluateReturn(step.expression, state);
   return { status: "success", output };
+}
+
+async function executeIf(
+  step: AEXIfStep,
+  state: ExecutionState,
+): Promise<StepResult> {
+  const checkResult = evaluateCheck(step.condition, state);
+  state.context.logger({
+    event: checkResult.ok ? "if.true" : "if.false",
+    data: { condition: step.condition },
+  });
+  if (!checkResult.ok) {
+    return { status: "continue" };
+  }
+  for (const bodyStep of step.body) {
+    const result = await executeStep(bodyStep, state);
+    if (result.status !== "continue") {
+      return result;
+    }
+  }
+  return { status: "continue" };
+}
+
+async function executeFor(
+  step: AEXForStep,
+  state: ExecutionState,
+): Promise<StepResult> {
+  const iterable = resolveToken(step.iterable, state);
+  if (!Array.isArray(iterable)) {
+    return {
+      status: "blocked",
+      reason: `for loop expects an array for "${step.iterable}", got ${typeof iterable}`,
+    };
+  }
+  state.context.logger({
+    event: "for.start",
+    data: { variable: step.variable, count: iterable.length },
+  });
+  for (const item of iterable) {
+    state.context.variables.set(step.variable, item);
+    for (const bodyStep of step.body) {
+      const result = await executeStep(bodyStep, state);
+      if (result.status !== "continue") {
+        return result;
+      }
+    }
+  }
+  state.context.variables.delete(step.variable);
+  return { status: "continue" };
 }
 
 function resolveArgs(

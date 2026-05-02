@@ -3,6 +3,7 @@ import {
   parseFile,
   ParseResult,
   AEXTask,
+  AEXStep,
   AEXDoStep,
   AEXMakeStep,
   matchesAny,
@@ -85,7 +86,19 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
   const deniedTools = new Set(task.deny);
   const knownValues = new Set(Object.keys(task.needs));
 
-  for (const step of task.steps) {
+  validateSteps(task.steps, allowedTools, deniedTools, knownValues, issues);
+
+  return { task, issues };
+}
+
+function validateSteps(
+  steps: AEXStep[],
+  allowedTools: Set<string>,
+  deniedTools: Set<string>,
+  knownValues: Set<string>,
+  issues: ValidationIssue[],
+) {
+  for (const step of steps) {
     switch (step.kind) {
       case "do":
         checkToolPermissions(step, allowedTools, deniedTools, issues);
@@ -97,12 +110,19 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
         checkInputs(step, knownValues, issues);
         knownValues.add(step.bind);
         break;
+      case "if":
+        validateSteps(step.body, allowedTools, deniedTools, knownValues, issues);
+        break;
+      case "for": {
+        const scopedValues = new Set(knownValues);
+        scopedValues.add(step.variable);
+        validateSteps(step.body, allowedTools, deniedTools, scopedValues, issues);
+        break;
+      }
       default:
         break;
     }
   }
-
-  return { task, issues };
 }
 
 function checkToolPermissions(

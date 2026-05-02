@@ -28,7 +28,9 @@ export type AEXStep =
   | AEXMakeStep
   | AEXCheckStep
   | AEXConfirmStep
-  | AEXReturnStep;
+  | AEXReturnStep
+  | AEXIfStep
+  | AEXForStep;
 
 export interface AEXDoStep {
   kind: "do";
@@ -65,6 +67,21 @@ export interface AEXReturnStep {
   line: number;
 }
 
+export interface AEXIfStep {
+  kind: "if";
+  condition: string;
+  body: AEXStep[];
+  line: number;
+}
+
+export interface AEXForStep {
+  kind: "for";
+  variable: string;
+  iterable: string;
+  body: AEXStep[];
+  line: number;
+}
+
 export interface ParseOptions {
   tolerant?: boolean;
 }
@@ -82,6 +99,11 @@ export async function parseFile(
   return parseAEX(contents, options);
 }
 
+function indentLevel(line: string): number {
+  const match = /^(\s*)/.exec(line);
+  return match ? match[1].length : 0;
+}
+
 export function parseAEX(
   source: string,
   options: ParseOptions = {},
@@ -95,216 +117,282 @@ export function parseAEX(
   };
   const diagnostics: ParseError[] = [];
 
-  let currentLine = 0;
-  let pendingMake: AEXMakeStep | undefined;
-  let pendingReturn: { expression: string; depth: number } | undefined;
+  let idx = 0;
 
-  const flushPendingMake = () => {
-    if (pendingMake) {
-      task.steps.push(pendingMake);
-      pendingMake = undefined;
-    }
-  };
+  function parseSteps(baseIndent: number): AEXStep[] {
+    const steps: AEXStep[] = [];
+    let pendingMake: AEXMakeStep | undefined;
+    let pendingReturn: { expression: string; depth: number; startLine: number } | undefined;
 
-  for (const rawLine of lines) {
-    currentLine += 1;
-    const trimmed = rawLine.trim();
-
-    if (pendingReturn) {
-      pendingReturn.expression += `\n${rawLine}`;
-      pendingReturn.depth += countOccurrences(rawLine, "{");
-      pendingReturn.depth -= countOccurrences(rawLine, "}");
-      if (pendingReturn.depth <= 0) {
-        task.steps.push({
-          kind: "return",
-          expression: pendingReturn.expression.trim(),
-          line: currentLine,
-        });
-        task.returnStatement = pendingReturn.expression.trim();
-        pendingReturn = undefined;
+    const flushPendingMake = () => {
+      if (pendingMake) {
+        steps.push(pendingMake);
+        pendingMake = undefined;
       }
-      continue;
-    }
+    };
 
-    if (!trimmed) {
+    while (idx < lines.length) {
+      const rawLine = lines[idx];
+      const lineNum = idx + 1;
+      const trimmed = rawLine.trim();
+      const indent = indentLevel(rawLine);
+
+      // If we're inside a multi-line return, keep collecting
+      if (pendingReturn) {
+        pendingReturn.expression += `\n${rawLine}`;
+        pendingReturn.depth += countOccurrences(rawLine, "{");
+        pendingReturn.depth -= countOccurrences(rawLine, "}");
+        if (pendingReturn.depth <= 0) {
+          const expr = pendingReturn.expression.trim();
+          steps.push({
+            kind: "return",
+            expression: expr,
+            line: lineNum,
+          });
+          task.returnStatement = expr;
+          pendingReturn = undefined;
+        }
+        idx++;
+        continue;
+      }
+
+      // Empty or comment lines
+      if (!trimmed) {
+        flushPendingMake();
+        idx++;
+        continue;
+      }
+      if (trimmed.startsWith("#")) {
+        flushPendingMake();
+        idx++;
+        continue;
+      }
+
+      // Check if we've dedented back to or past parent scope
+      if (indent < baseIndent && trimmed) {
+        flushPendingMake();
+        break;
+      }
+
+      // Make instruction lines (- item)
+      if (trimmed.startsWith("-") && pendingMake) {
+        pendingMake.instructions.push(trimmed.replace(/^-+\s*/, "").trim());
+        idx++;
+        continue;
+      }
+
       flushPendingMake();
-      continue;
-    }
 
-    if (trimmed.startsWith("#")) {
-      flushPendingMake();
-      continue;
-    }
+      // Metadata (only at top level, baseIndent 0)
+      if (baseIndent === 0) {
+        if (trimmed.startsWith("agent ")) {
+          const match = /^agent\s+([A-Za-z0-9_-]+)\s+v([0-9.]+)$/.exec(trimmed);
+          if (!match) {
+            diagnostics.push({ message: "Invalid agent declaration", line: lineNum });
+          } else {
+            task.agent = { name: match[1], version: match[2] };
+          }
+          idx++;
+          continue;
+        }
 
-    if (trimmed.startsWith("-") && pendingMake) {
-      pendingMake.instructions.push(trimmed.replace(/^-+\s*/, "").trim());
-      continue;
+        if (trimmed.startsWith("goal ")) {
+          const match = /^goal\s+"(.*)"$/.exec(trimmed);
+          if (!match) {
+            diagnostics.push({ message: "Goal must be a quoted string", line: lineNum });
+          } else {
+            task.goal = match[1];
+          }
+          idx++;
+          continue;
+        }
+
+        if (trimmed.startsWith("use ")) {
+          task.use.push(...splitList(trimmed.substring(4)));
+          idx++;
+          continue;
+        }
+
+        if (trimmed.startsWith("deny ")) {
+          task.deny.push(...splitList(trimmed.substring(5)));
+          idx++;
+          continue;
+        }
+
+        if (trimmed.startsWith("need ")) {
+          const match = /^need\s+([A-Za-z0-9_.-]+)\s*:\s*(.+)$/.exec(trimmed);
+          if (!match) {
+            diagnostics.push({ message: "Invalid need declaration", line: lineNum });
+          } else {
+            task.needs[match[1]] = match[2];
+          }
+          idx++;
+          continue;
+        }
+
+        if (trimmed.startsWith("budget ")) {
+          const parts = splitList(trimmed.substring(7));
+          const budget = task.budget ?? {};
+          for (const part of parts) {
+            const [key, value] = part.split("=");
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) {
+              diagnostics.push({
+                message: `Invalid numeric budget value for "${part}"`,
+                line: lineNum,
+              });
+            } else {
+              budget[key.trim()] = numeric;
+            }
+          }
+          task.budget = budget;
+          idx++;
+          continue;
+        }
+      }
+
+      // Step statements (valid at any indent level)
+      if (trimmed.startsWith("do ")) {
+        const match =
+          /^do\s+([A-Za-z0-9._*]+)\s*\((.*)\)\s*(?:->\s*([A-Za-z0-9_.-]+))?$/.exec(
+            trimmed,
+          );
+        if (!match) {
+          diagnostics.push({ message: "Invalid do statement", line: lineNum });
+        } else {
+          steps.push({
+            kind: "do",
+            tool: match[1],
+            args: parseArgs(match[2]),
+            bind: match[3],
+            line: lineNum,
+          });
+        }
+        idx++;
+        continue;
+      }
+
+      if (trimmed.startsWith("make ")) {
+        const match =
+          /^make\s+([A-Za-z0-9_.-]+)\s*:\s*([A-Za-z0-9_.-]+)\s+from\s+(.+?)\s+with\s*:?\s*$/.exec(
+            trimmed,
+          );
+        if (!match) {
+          diagnostics.push({ message: "Invalid make statement", line: lineNum });
+        } else {
+          pendingMake = {
+            kind: "make",
+            bind: match[1],
+            type: match[2],
+            inputs: splitList(match[3]),
+            instructions: [],
+            line: lineNum,
+          };
+        }
+        idx++;
+        continue;
+      }
+
+      if (trimmed.startsWith("check ")) {
+        steps.push({
+          kind: "check",
+          condition: trimmed.substring(6).trim(),
+          line: lineNum,
+        });
+        idx++;
+        continue;
+      }
+
+      if (trimmed.startsWith("confirm before ")) {
+        steps.push({
+          kind: "confirm",
+          before: trimmed.substring("confirm before ".length).trim(),
+          line: lineNum,
+        });
+        idx++;
+        continue;
+      }
+
+      if (trimmed.startsWith("return ")) {
+        const expression = trimmed.substring(7).trim();
+        const depth =
+          countOccurrences(expression, "{") - countOccurrences(expression, "}");
+        if (depth > 0 && !expression.endsWith("}")) {
+          pendingReturn = { expression, depth, startLine: lineNum };
+        } else {
+          steps.push({
+            kind: "return",
+            expression,
+            line: lineNum,
+          });
+          task.returnStatement = expression;
+        }
+        idx++;
+        continue;
+      }
+
+      // Control flow: if
+      if (trimmed.startsWith("if ")) {
+        const condition = trimmed.substring(3).trim();
+        if (!condition) {
+          diagnostics.push({ message: "if statement requires a condition", line: lineNum });
+          idx++;
+          continue;
+        }
+        idx++;
+        // Determine the body indent: first non-empty line's indent
+        const bodyIndent = peekBodyIndent(lines, idx, indent);
+        const body = bodyIndent > indent ? parseSteps(bodyIndent) : [];
+        steps.push({
+          kind: "if",
+          condition,
+          body,
+          line: lineNum,
+        });
+        continue;
+      }
+
+      // Control flow: for
+      if (trimmed.startsWith("for ")) {
+        const match = /^for\s+([A-Za-z0-9_]+)\s+in\s+(.+)$/.exec(trimmed);
+        if (!match) {
+          diagnostics.push({ message: "Invalid for statement", line: lineNum });
+          idx++;
+          continue;
+        }
+        idx++;
+        const bodyIndent = peekBodyIndent(lines, idx, indent);
+        const body = bodyIndent > indent ? parseSteps(bodyIndent) : [];
+        steps.push({
+          kind: "for",
+          variable: match[1],
+          iterable: match[2].trim(),
+          body,
+          line: lineNum,
+        });
+        continue;
+      }
+
+      diagnostics.push({
+        message: `Unrecognized line: "${trimmed}"`,
+        line: lineNum,
+      });
+      idx++;
     }
 
     flushPendingMake();
 
-    if (trimmed.startsWith("agent ")) {
-      const match = /^agent\s+([A-Za-z0-9_-]+)\s+v([0-9.]+)$/.exec(trimmed);
-      if (!match) {
-        diagnostics.push({
-          message: "Invalid agent declaration",
-          line: currentLine,
-        });
-      } else {
-        task.agent = { name: match[1], version: match[2] };
-      }
-      continue;
-    }
-
-    if (trimmed.startsWith("goal ")) {
-      const match = /^goal\s+"(.*)"$/.exec(trimmed);
-      if (!match) {
-        diagnostics.push({
-          message: "Goal must be a quoted string",
-          line: currentLine,
-        });
-      } else {
-        task.goal = match[1];
-      }
-      continue;
-    }
-
-    if (trimmed.startsWith("use ")) {
-      task.use.push(...splitList(trimmed.substring(4)));
-      continue;
-    }
-
-    if (trimmed.startsWith("deny ")) {
-      task.deny.push(...splitList(trimmed.substring(5)));
-      continue;
-    }
-
-    if (trimmed.startsWith("need ")) {
-      const match = /^need\s+([A-Za-z0-9_.-]+)\s*:\s*(.+)$/.exec(trimmed);
-      if (!match) {
-        diagnostics.push({
-          message: "Invalid need declaration",
-          line: currentLine,
-        });
-      } else {
-        task.needs[match[1]] = match[2];
-      }
-      continue;
-    }
-
-    if (trimmed.startsWith("budget ")) {
-      const parts = splitList(trimmed.substring(7));
-      const budget = task.budget ?? {};
-      for (const part of parts) {
-        const [key, value] = part.split("=");
-        const numeric = Number(value);
-        if (!Number.isFinite(numeric)) {
-          diagnostics.push({
-            message: `Invalid numeric budget value for "${part}"`,
-            line: currentLine,
-          });
-        } else {
-          budget[key.trim()] = numeric;
-        }
-      }
-      task.budget = budget;
-      continue;
-    }
-
-    if (trimmed.startsWith("do ")) {
-      const match =
-        /^do\s+([A-Za-z0-9._*]+)\s*\((.*)\)\s*(?:->\s*([A-Za-z0-9_.-]+))?$/.exec(
-          trimmed,
-        );
-      if (!match) {
-        diagnostics.push({
-          message: "Invalid do statement",
-          line: currentLine,
-        });
-      } else {
-        task.steps.push({
-          kind: "do",
-          tool: match[1],
-          args: parseArgs(match[2]),
-          bind: match[3],
-          line: currentLine,
-        });
-      }
-      continue;
-    }
-
-    if (trimmed.startsWith("make ")) {
-      const match =
-        /^make\s+([A-Za-z0-9_.-]+)\s*:\s*([A-Za-z0-9_.-]+)\s+from\s+(.+?)\s+with\s*:?\s*$/.exec(
-          trimmed,
-        );
-      if (!match) {
-        diagnostics.push({
-          message: "Invalid make statement",
-          line: currentLine,
-        });
-      } else {
-        pendingMake = {
-          kind: "make",
-          bind: match[1],
-          type: match[2],
-          inputs: splitList(match[3]),
-          instructions: [],
-          line: currentLine,
-        };
-      }
-      continue;
-    }
-
-    if (trimmed.startsWith("check ")) {
-      task.steps.push({
-        kind: "check",
-        condition: trimmed.substring(6).trim(),
-        line: currentLine,
+    if (pendingReturn) {
+      diagnostics.push({
+        message: "Return block was not closed",
+        line: pendingReturn.startLine,
       });
-      continue;
     }
 
-    if (trimmed.startsWith("confirm before ")) {
-      task.steps.push({
-        kind: "confirm",
-        before: trimmed.substring("confirm before ".length).trim(),
-        line: currentLine,
-      });
-      continue;
-    }
-
-    if (trimmed.startsWith("return ")) {
-      const expression = trimmed.substring(7).trim();
-      const depth =
-        countOccurrences(expression, "{") - countOccurrences(expression, "}");
-      if (depth > 0 && !expression.endsWith("}")) {
-        pendingReturn = { expression, depth };
-      } else {
-        task.steps.push({
-          kind: "return",
-          expression,
-          line: currentLine,
-        });
-        task.returnStatement = expression;
-      }
-      continue;
-    }
-
-    diagnostics.push({
-      message: `Unrecognized line: "${trimmed}"`,
-      line: currentLine,
-    });
+    return steps;
   }
 
-  flushPendingMake();
-
-  if (pendingReturn) {
-    diagnostics.push({
-      message: "Return block was not closed",
-      line: currentLine,
-    });
-  }
+  task.steps = parseSteps(0);
 
   if (!task.agent) {
     diagnostics.push({ message: "Missing agent declaration", line: 0 });
@@ -318,6 +406,15 @@ export function parseAEX(
   }
 
   return { task, diagnostics };
+}
+
+function peekBodyIndent(lines: string[], startIdx: number, parentIndent: number): number {
+  for (let i = startIdx; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    return indentLevel(lines[i]);
+  }
+  return parentIndent;
 }
 
 export class ParseFailure extends Error {
@@ -433,51 +530,75 @@ export type AEXIRStep =
   | {
       op: "return";
       value: string;
+    }
+  | {
+      op: "if";
+      condition: string;
+      steps: AEXIRStep[];
+    }
+  | {
+      op: "for";
+      variable: string;
+      iterable: string;
+      steps: AEXIRStep[];
     };
+
+function compileStep(step: AEXStep): AEXIRStep {
+  switch (step.kind) {
+    case "do":
+      return {
+        op: "call",
+        tool: step.tool,
+        args: step.args,
+        bind: step.bind,
+      };
+    case "make":
+      return {
+        op: "make",
+        bind: step.bind,
+        type: step.type,
+        inputs: step.inputs,
+        instructions: step.instructions,
+      };
+    case "check":
+      return {
+        op: "check",
+        condition: step.condition,
+      };
+    case "confirm":
+      return {
+        op: "confirm",
+        tool: step.before,
+      };
+    case "return":
+      return {
+        op: "return",
+        value: step.expression,
+      };
+    case "if":
+      return {
+        op: "if",
+        condition: step.condition,
+        steps: step.body.map(compileStep),
+      };
+    case "for":
+      return {
+        op: "for",
+        variable: step.variable,
+        iterable: step.iterable,
+        steps: step.body.map(compileStep),
+      };
+    default:
+      return {
+        op: "check",
+        condition: `unsupported step ${(step as AEXStep).kind}`,
+      };
+  }
+}
 
 export function compileTask(task: AEXTask): AEXIR {
   const agentName = task.agent?.name ?? "unknown_agent";
   const agentVersion = task.agent?.version ?? "0";
-
-  const steps: AEXIRStep[] = task.steps.map((step) => {
-    switch (step.kind) {
-      case "do":
-        return {
-          op: "call",
-          tool: step.tool,
-          args: step.args,
-          bind: step.bind,
-        };
-      case "make":
-        return {
-          op: "make",
-          bind: step.bind,
-          type: step.type,
-          inputs: step.inputs,
-          instructions: step.instructions,
-        };
-      case "check":
-        return {
-          op: "check",
-          condition: step.condition,
-        };
-      case "confirm":
-        return {
-          op: "confirm",
-          tool: step.before,
-        };
-      case "return":
-        return {
-          op: "return",
-          value: step.expression,
-        };
-      default:
-        return {
-          op: "check",
-          condition: `unsupported step ${(step as AEXStep).kind}`,
-        };
-    }
-  });
 
   return {
     version: agentVersion,
@@ -489,7 +610,7 @@ export function compileTask(task: AEXTask): AEXIR {
     },
     needs: task.needs,
     budget: task.budget,
-    steps,
+    steps: task.steps.map(compileStep),
     return: task.returnStatement,
   };
 }

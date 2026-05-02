@@ -7,7 +7,7 @@
     "website"
   ],
   "scripts": {
-    "build": "npm run build -w @aex-lang/parser && npm run build -w @aex-lang/validator && npm run build -w @aex-lang/runtime && npm run build -w @aex-lang/cli && npm run build -w @aex-lang/openai-agents && npm run build -w @aex-lang/mcp-gateway && npm run build -w @aex-lang/langgraph",
+    "build": "npm run build -w @aex-lang/parser && npm run build -w @aex-lang/validator && npm run build -w @aex-lang/runtime && npm run build -w @aex-lang/mcp-gateway && npm run build -w @aex-lang/cli && npm run build -w @aex-lang/openai-agents && npm run build -w @aex-lang/langgraph",
     "dev": "npm run dev -w @aex-lang/cli",
     "lint": "npm run lint -w @aex-lang/cli",
     "test": "vitest run",

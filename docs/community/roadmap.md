@@ -27,11 +27,14 @@
    - [x] Built-in Anthropic handler (`AEX_MODEL=anthropic`)
    - [x] Custom handler support (`--model-handler ./path.ts`)
    - [x] Budget enforcement at runtime (cap `do`/`make` invocations)
+6. **Control flow**
+   - [x] `if` conditional branching with indentation-based blocks
+   - [x] `for` loop iteration over lists
+   - [x] Nested control flow (if inside for, etc.)
 
 ## Up Next
 
 - Publish `@aex-lang/*` packages to npm
-- Loops and conditional branching in the DSL (`if`, `for`)
 - `aex run` support for remote tool registries
 - Policy inheritance and composition across contracts
 - Structured logging and OpenTelemetry export

@@ -22,6 +22,11 @@
    - [x] Threat-model reference implementation
    - [x] Signed contracts (`aex sign` / `aex verify`)
    - [x] Timing-safe HMAC verification
+5. **Model handlers**
+   - [x] Built-in OpenAI handler (`AEX_MODEL=openai`)
+   - [x] Built-in Anthropic handler (`AEX_MODEL=anthropic`)
+   - [x] Custom handler support (`--model-handler ./path.ts`)
+   - [x] Budget enforcement at runtime (cap `do`/`make` invocations)
 
 ## Up Next
 
@@ -31,14 +36,11 @@
 - Policy inheritance and composition across contracts
 - Structured logging and OpenTelemetry export
 - `aex-lang/setup-aex` GitHub Action for CI
-- Budget enforcement at runtime (cap `do`/`make` invocations)
-- Model handler integrations (OpenAI, Anthropic) for `make` steps
 
 ## Not Yet Done
 
 - npm packages are not published
 - No stable API guarantees
 - No independent security audit
-- `make` steps require a user-provided model handler
 
 Contributions are welcome — open an issue if you'd like to tackle an item or propose a new milestone.

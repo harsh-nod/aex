@@ -147,7 +147,7 @@ Track ongoing work in the [Roadmap](community/roadmap).
 
 - [Quickstart](/quickstart) for a five-minute run-through.
 - [Language Overview](/language/overview) for every keyword.
-- [Examples](/examples/README) for real-world task contracts.
+- [Examples](/examples/) for real-world task contracts.
 - [Threat Monitor](/examples/security) for a threat-modelled workflow.
 - [Policy Reference](/reference/policy) &amp; [Security Model](/reference/security) for governance teams.
 - [VS Code Extension](https://github.com/harsh-nod/aex/tree/main/packages/aex-vscode) for syntax highlighting and snippets.

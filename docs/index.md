@@ -3,7 +3,7 @@ title: AEX Overview
 ---
 
 <div class="hero-intro">
-  <h1>Field Notes for Agentic Systems</h1>
+  <h1>Prompts Are Not Permissions</h1>
   <p class="hero-tagline">
     AEX captures an agent’s permissions, tests, confirmations, and provenance in one contract. Format it, sign it, run it, and compile it into LangGraph without rewriting your stack.
   </p>

@@ -107,7 +107,7 @@ export default defineConfig({
       { icon: "github", link: "https://github.com/harsh-nod/aex" }
     ],
     footer: {
-      message: "Prompts are not permissions.",
+      message: "Enforce first, execute second.",
       copyright: "© " + new Date().getFullYear() + " AEX contributors."
     }
   },

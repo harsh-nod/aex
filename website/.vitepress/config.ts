@@ -86,6 +86,7 @@ export default defineConfig({
           text: "Reference",
           items: [
             { text: "Policy", link: "/reference/policy" },
+            { text: "Meta-Tools", link: "/reference/meta-tools" },
             { text: "Security Model", link: "/reference/security" },
             { text: "CLI Reference", link: "/reference/cli" }
           ]

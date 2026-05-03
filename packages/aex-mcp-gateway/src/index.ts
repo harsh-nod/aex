@@ -4,6 +4,13 @@ import type { EffectivePermissions, RuntimeEvent } from "@aex-lang/runtime";
 import { createInterface } from "node:readline";
 import type { ChildProcess } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
+import {
+  isMetaTool,
+  handleMetaTool,
+  META_TOOL_DEFINITIONS,
+  type ToolCallRecord,
+  type MetaToolContext,
+} from "./meta-tools.js";
 
 export interface GatewaySummary {
   allowedTools: string[];
@@ -76,11 +83,13 @@ export interface ProxyOptions {
   permissions: EffectivePermissions;
   autoConfirm?: boolean;
   logger: (event: RuntimeEvent) => void;
+  cwd?: string;
 }
 
 export type ProxyDecision =
   | { action: "forward" }
-  | { action: "block"; response: JsonRpcResponse };
+  | { action: "block"; response: JsonRpcResponse }
+  | { action: "meta"; toolName: string; params: Record<string, unknown>; requestId: string | number | null };
 
 /**
  * MCP stdio proxy that sits between a client (Claude Code / Codex) and an
@@ -89,13 +98,32 @@ export type ProxyDecision =
 export class AEXProxy {
   private readonly permissions: EffectivePermissions;
   private readonly autoConfirm: boolean;
-  private readonly logger: (event: RuntimeEvent) => void;
+  private readonly externalLogger: (event: RuntimeEvent) => void;
+  private readonly cwd: string;
   private callsUsed = 0;
+  private toolHistory: ToolCallRecord[] = [];
+  private auditEvents: RuntimeEvent[] = [];
 
   constructor(options: ProxyOptions) {
     this.permissions = options.permissions;
     this.autoConfirm = options.autoConfirm ?? false;
-    this.logger = options.logger;
+    this.externalLogger = options.logger;
+    this.cwd = options.cwd ?? process.cwd();
+  }
+
+  private logger(event: RuntimeEvent): void {
+    const timestamped = { ...event, timestamp: event.timestamp ?? new Date().toISOString() };
+    this.auditEvents.push(timestamped);
+    this.externalLogger(timestamped);
+  }
+
+  private recordToolCall(tool: string, decision: "forward" | "block", reason?: string): void {
+    this.toolHistory.push({
+      tool,
+      timestamp: new Date().toISOString(),
+      decision,
+      reason,
+    });
   }
 
   /**
@@ -129,6 +157,10 @@ export class AEXProxy {
         const decision = this.handleToolsCall(msg);
         if (decision.action === "block") {
           clientOut.write(JSON.stringify(decision.response) + "\n");
+          return;
+        }
+        if (decision.action === "meta") {
+          this.executeMetaTool(decision, clientOut);
           return;
         }
       }
@@ -177,9 +209,20 @@ export class AEXProxy {
     const toolName = (request.params?.name as string) ?? "";
     const requestId = request.id ?? null;
 
+    // 0. Meta-tool interception — bypass policy entirely
+    if (isMetaTool(toolName)) {
+      return {
+        action: "meta",
+        toolName,
+        params: (request.params?.arguments as Record<string, unknown>) ?? {},
+        requestId,
+      };
+    }
+
     // 1. Check deny list
     if (matchesAny(toolName, this.permissions.deny)) {
       this.logger({ event: "tool.denied", data: { tool: toolName, reason: "deny_list" } });
+      this.recordToolCall(toolName, "block", "deny_list");
       return {
         action: "block",
         response: errorResponse(requestId, -32600, `Tool "${toolName}" is denied by policy.`),
@@ -189,6 +232,7 @@ export class AEXProxy {
     // 2. Check allow list
     if (!matchesAny(toolName, this.permissions.allow)) {
       this.logger({ event: "tool.denied", data: { tool: toolName, reason: "not_allowed" } });
+      this.recordToolCall(toolName, "block", "not_allowed");
       return {
         action: "block",
         response: errorResponse(requestId, -32600, `Tool "${toolName}" is not in the allow list.`),
@@ -200,6 +244,7 @@ export class AEXProxy {
       this.callsUsed++;
       if (this.callsUsed > this.permissions.budget) {
         this.logger({ event: "budget.exhausted", data: { tool: toolName, used: this.callsUsed, limit: this.permissions.budget } });
+        this.recordToolCall(toolName, "block", "budget_exhausted");
         return {
           action: "block",
           response: errorResponse(requestId, -32600, "Call budget exhausted."),
@@ -211,6 +256,7 @@ export class AEXProxy {
     if (matchesAny(toolName, this.permissions.confirm)) {
       if (!this.autoConfirm) {
         this.logger({ event: "confirm.required", data: { tool: toolName } });
+        this.recordToolCall(toolName, "block", "confirm_required");
         return {
           action: "block",
           response: errorResponse(requestId, -32600, `Tool "${toolName}" requires confirmation (use --auto-confirm to bypass).`),
@@ -221,6 +267,7 @@ export class AEXProxy {
 
     // 5. Allowed — forward
     this.logger({ event: "tool.allowed", data: { tool: toolName } });
+    this.recordToolCall(toolName, "forward");
     return { action: "forward" };
   }
 
@@ -239,24 +286,74 @@ export class AEXProxy {
       return true;
     });
 
+    // Inject meta-tools into the tool list
+    const withMeta = [...filtered, ...META_TOOL_DEFINITIONS];
+
     this.logger({
       event: "tools.filtered",
       data: {
         total: result.tools.length,
         allowed: filtered.length,
         removed: result.tools.length - filtered.length,
+        metaTools: META_TOOL_DEFINITIONS.length,
       },
     });
 
     return {
       ...response,
-      result: { ...result, tools: filtered },
+      result: { ...result, tools: withMeta },
     };
+  }
+
+  private async executeMetaTool(
+    decision: Extract<ProxyDecision, { action: "meta" }>,
+    clientOut: Writable,
+  ): Promise<void> {
+    try {
+      const ctx: MetaToolContext = {
+        cwd: this.cwd,
+        callsUsed: this.callsUsed,
+        budget: this.permissions.budget,
+        toolHistory: [...this.toolHistory],
+        auditEvents: [...this.auditEvents],
+        permissions: this.permissions,
+        restoreState: (callsUsed: number, toolHistory: ToolCallRecord[]) => {
+          this.callsUsed = callsUsed;
+          this.toolHistory = [...toolHistory];
+        },
+      };
+      const result = await handleMetaTool(decision.toolName, decision.params, ctx);
+      this.logger({ event: "meta.handled", data: { tool: decision.toolName } });
+      clientOut.write(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: decision.requestId,
+          result: {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          },
+        }) + "\n",
+      );
+    } catch (error) {
+      clientOut.write(
+        JSON.stringify(
+          errorResponse(
+            decision.requestId,
+            -32603,
+            `Meta-tool error: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        ) + "\n",
+      );
+    }
   }
 
   /** Current number of calls consumed */
   get callCount(): number {
     return this.callsUsed;
+  }
+
+  /** Current tool call history */
+  get history(): ToolCallRecord[] {
+    return [...this.toolHistory];
   }
 }
 

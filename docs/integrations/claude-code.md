@@ -191,6 +191,41 @@ aex review .aex/runs/fix-test.aex --run
 
 **Key principle:** The model drafts. The human reviews. AEX executes. Claude does not freestyle edits in contract mode.
 
+## Session Checkpoints
+
+The proxy's meta-tools let Claude checkpoint and resume sessions across conversations.
+
+### Save Progress
+
+Mid-session, Claude can save the current state:
+
+```
+Claude: calls aex.checkpoint({ name: "fix-auth", description: "Identified the bug" })
+```
+
+This writes the audit log, budget state, and tool call history to `.aex/checkpoints/fix-auth/`.
+
+### Resume Later
+
+In a new session, Claude can resume:
+
+```
+Claude: calls aex.resume({ name: "fix-auth" })
+```
+
+The proxy restores the budget counter and returns the session context (what tools were called, what was accomplished) so Claude can continue without repeating work.
+
+### Discover Contracts
+
+Claude can list available task contracts and checkpoints:
+
+```
+Claude: calls aex.list_tasks()
+Claude: calls aex.run_task({ task: "tasks/fix-test.aex" })
+```
+
+Meta-tools are automatically available when using `aex proxy`. See the [Meta-Tools Reference](/reference/meta-tools) for full details.
+
 ## Pairing with CLAUDE.md
 
 | Aspect | CLAUDE.md | AEX Policy |

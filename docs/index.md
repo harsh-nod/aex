@@ -196,6 +196,10 @@ When both are active, effective permissions are the most restrictive combination
     <h3>Audit Trail</h3>
     <p>Every tool call, check, confirmation, and budget decision is logged as structured JSON. Full observability for every execution.</p>
   </article>
+  <article class="card">
+    <h3>Session Checkpoints</h3>
+    <p>Save mid-session progress with <code>aex.checkpoint</code>. Resume in any MCP client with <code>aex.resume</code>. Cross-client, cross-session continuity.</p>
+  </article>
 </div>
 
 ## Integrations
@@ -251,6 +255,7 @@ const agent = new AEXGuardedAgent({
 - **`.aex/runs/`** — generated contracts and audit logs stored alongside your policy.
 - **Claude Code hook** — `aex gate` enforces policy on every built-in tool call.
 - **MCP Proxy** — `aex proxy` sits between your client and upstream MCP servers.
+- **Session Checkpoints** — `aex.checkpoint` and `aex.resume` meta-tools let agents save and reload sessions across conversations.
 - **Policy files** — `policy workspace v0` defines ambient security boundaries.
 - **Merge semantics** — allow = intersection, deny = union, budget = min.
 

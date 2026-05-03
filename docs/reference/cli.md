@@ -191,6 +191,19 @@ The proxy auto-discovers `.aex/policy.aex` in the working directory. It sits bet
 
 See the [Claude Code](/integrations/claude-code) and [Codex](/integrations/codex) integration guides for full setup.
 
+### Meta-Tools
+
+The proxy exposes four meta-tools through the MCP protocol. These are handled locally — never forwarded to upstream:
+
+| Tool | Description |
+|------|-------------|
+| `aex.checkpoint` | Save session state (audit log, budget, tool history) to disk |
+| `aex.resume` | Load a checkpoint and restore budget state |
+| `aex.list_tasks` | List available contracts and checkpoints |
+| `aex.run_task` | Review a contract's permissions without executing |
+
+Meta-tools bypass policy — they manage AEX itself. They appear automatically in `tools/list` responses. See the [Meta-Tools Reference](/reference/meta-tools) for input schemas and examples.
+
 ## `aex gate`
 
 Claude Code `PreToolUse` hook that evaluates every tool call against your AEX policy.

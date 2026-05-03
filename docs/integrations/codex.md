@@ -128,6 +128,41 @@ aex review .aex/runs/fix-test.aex --run
 
 The runtime enforces tool permissions, checks, confirmations, and budgets. The model generates artifacts inside bounded `make` steps — it cannot directly write files or call tools outside the contract.
 
+## Session Checkpoints
+
+The proxy's meta-tools let Codex checkpoint and resume sessions across conversations.
+
+### Save Progress
+
+Mid-session, Codex can save the current state:
+
+```
+Codex: calls aex.checkpoint({ name: "fix-auth", description: "Identified the bug" })
+```
+
+This writes the audit log, budget state, and tool call history to `.aex/checkpoints/fix-auth/`.
+
+### Resume Later
+
+In a new session, Codex can resume:
+
+```
+Codex: calls aex.resume({ name: "fix-auth" })
+```
+
+The proxy restores the budget counter and returns the session context (what tools were called, what was accomplished) so Codex can continue without repeating work.
+
+### Discover Contracts
+
+Codex can list available task contracts and checkpoints:
+
+```
+Codex: calls aex.list_tasks()
+Codex: calls aex.run_task({ task: "tasks/fix-test.aex" })
+```
+
+Meta-tools are automatically available when using `aex proxy`. See the [Meta-Tools Reference](/reference/meta-tools) for full details.
+
 ## See Also
 
 - [Language Overview](/language/overview) — AEX policy and task syntax

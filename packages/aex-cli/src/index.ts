@@ -629,6 +629,7 @@ program
           permissions: effective,
           autoConfirm: options.autoConfirm,
           logger,
+          cwd: process.cwd(),
         });
 
         process.stderr.write(

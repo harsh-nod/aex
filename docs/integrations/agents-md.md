@@ -34,7 +34,7 @@ Never commit .env files. Do not access external APIs during tests.
 **tasks/fix-test.aex** — task-specific enforcement:
 
 ```aex
-agent fix_test v0
+task fix_test v0
 
 goal "Fix the failing test with the smallest safe change."
 

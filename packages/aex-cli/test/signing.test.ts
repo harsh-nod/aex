@@ -13,7 +13,7 @@ async function writeTempContract(contents: string): Promise<string> {
 
 describe("signing", () => {
   it("creates and verifies provenance metadata", async () => {
-    const file = await writeTempContract("agent foo v0\n\nreturn true\n");
+    const file = await writeTempContract("task foo v0\n\nreturn true\n");
     const secret = "secret-key";
     const signature = await createSignature(file, "tester", secret);
     expect(signature.hash).toHaveLength(64);
@@ -25,7 +25,7 @@ describe("signing", () => {
   });
 
   it("rejects tampered signatures", async () => {
-    const file = await writeTempContract("agent bar v0\n\nreturn true\n");
+    const file = await writeTempContract("task bar v0\n\nreturn true\n");
     const secret = "my-key";
     const signature = await createSignature(file, "tester", secret);
     const tampered = { ...signature, signature: "a".repeat(64) };
@@ -34,10 +34,10 @@ describe("signing", () => {
   });
 
   it("rejects when file content has changed", async () => {
-    const file = await writeTempContract("agent baz v0\n\nreturn true\n");
+    const file = await writeTempContract("task baz v0\n\nreturn true\n");
     const secret = "my-key";
     const signature = await createSignature(file, "tester", secret);
-    await fs.writeFile(file, "agent baz v0\n\nreturn false\n", "utf8");
+    await fs.writeFile(file, "task baz v0\n\nreturn false\n", "utf8");
     const valid = await verifySignature(file, signature, secret);
     expect(valid).toBe(false);
   });

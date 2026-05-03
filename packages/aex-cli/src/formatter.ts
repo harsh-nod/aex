@@ -20,7 +20,8 @@ export function formatTask(task: AEXTask): string {
   const lines: string[] = [];
 
   if (task.agent) {
-    lines.push(`agent ${task.agent.name} v${task.agent.version}`);
+    const keyword = task.isPolicy ? "policy" : "task";
+    lines.push(`${keyword} ${task.agent.name} v${task.agent.version}`);
   }
 
   if (task.goal) {

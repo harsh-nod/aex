@@ -1,0 +1,8 @@
+policy research v0
+
+goal "Read-only boundary for research workflows."
+
+allow web.search, web.open, model.make
+deny web.post, email.send, payment.*, secrets.read
+
+budget calls=30

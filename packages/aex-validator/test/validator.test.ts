@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { parseAEX } from "@aex-lang/parser";
 import { validateParsed, ValidationIssue } from "@aex-lang/validator";
 
-const BASE_CONTRACT = `agent sample v0
+const BASE_CONTRACT = `task sample v0
 
 goal "Demo"
 
@@ -24,7 +24,7 @@ describe("validator", () => {
   });
 
   it("flags tool usage that is not declared", () => {
-    const invalid = `agent sample v0
+    const invalid = `task sample v0
 
 goal "Demo"
 
@@ -48,7 +48,7 @@ return result
   });
 
   it("flags denied tools even if declared", () => {
-    const invalid = `agent sample v0
+    const invalid = `task sample v0
 
 goal "Demo"
 
@@ -73,7 +73,7 @@ return result
   });
 
   it("flags make steps that reference unknown values", () => {
-    const invalid = `agent sample v0
+    const invalid = `task sample v0
 
 goal "Demo"
 
@@ -98,7 +98,7 @@ return report
   });
 
   it("flags unknown need types", () => {
-    const invalid = `agent sample v0
+    const invalid = `task sample v0
 
 goal "Demo"
 
@@ -124,7 +124,7 @@ return content
   });
 
   it("accepts all known need types", () => {
-    const valid = `agent sample v0
+    const valid = `task sample v0
 
 goal "Demo"
 
@@ -152,7 +152,7 @@ return content
   });
 
   it("requires a return statement", () => {
-    const invalid = `agent sample v0
+    const invalid = `task sample v0
 
 goal "Demo"
 

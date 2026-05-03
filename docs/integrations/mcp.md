@@ -51,7 +51,7 @@ const result = await mcpServer.call("db.query", args);
 A gateway contract defines the permissions boundary for an MCP server. Here's one that protects a database server:
 
 ```aex
-agent db_gateway v0
+task db_gateway v0
 
 goal "Allow read queries but gate all writes behind confirmation."
 
@@ -101,7 +101,7 @@ Use this to build audit dashboards or permission matrices.
 ### 1. Create the contract
 
 ```aex
-agent api_proxy v0
+task api_proxy v0
 
 goal "Proxy API calls with rate limiting and access control."
 

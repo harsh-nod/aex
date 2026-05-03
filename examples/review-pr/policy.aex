@@ -2,7 +2,7 @@ policy review v0
 
 goal "Read-only boundary for code review."
 
-use git.diff, git.status, file.read
+allow git.diff, git.status, file.read
 deny file.write, network.*, secrets.read
 
 budget calls=50

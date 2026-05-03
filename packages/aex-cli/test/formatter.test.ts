@@ -4,7 +4,7 @@ import { formatTask } from "../src/formatter.js";
 
 describe("formatter", () => {
   it("normalizes contract layout", () => {
-    const source = `agent sample_agent v1
+    const source = `task sample_agent v1
 
 goal "Example"
 
@@ -30,7 +30,7 @@ return { status: "done", files: write_result.written }
     const parsed = parseAEX(source, { tolerant: true });
     const formatted = formatTask(parsed.task);
     expect(formatted).toMatchInlineSnapshot(`
-"agent sample_agent v1
+"task sample_agent v1
 
 goal \"Example\"
 
@@ -56,7 +56,7 @@ return { status: \"done\", files: write_result.written }"
   });
 
   it("preserves budget declarations", () => {
-    const source = `agent budgeted v0
+    const source = `task budgeted v0
 
 goal "Budget test"
 

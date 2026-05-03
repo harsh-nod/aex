@@ -69,7 +69,7 @@ describe("runtime", () => {
   });
 
   it("executes allowed tools and returns structured output", async () => {
-    const taskPath = await writeTempTask(`agent runtime_success v0
+    const taskPath = await writeTempTask(`task runtime_success v0
 
 goal "Succeeds"
 
@@ -95,7 +95,7 @@ return outcome
   });
 
   it("blocks when tool is not declared in use", async () => {
-    const taskPath = await writeTempTask(`agent runtime_block v0
+    const taskPath = await writeTempTask(`task runtime_block v0
 
 goal "Blocks unused tool"
 
@@ -115,7 +115,7 @@ return outcome
   });
 
   it("requires confirmation when confirm step present", async () => {
-    const taskPath = await writeTempTask(`agent runtime_confirm v0
+    const taskPath = await writeTempTask(`task runtime_confirm v0
 
 goal "Needs confirmation"
 
@@ -144,7 +144,7 @@ return outcome
   });
 
   it("evaluates string inclusion checks", async () => {
-    const taskPath = await writeTempTask(`agent runtime_review v0
+    const taskPath = await writeTempTask(`task runtime_review v0
 
 goal "Validate review text"
 
@@ -181,7 +181,7 @@ return review
   });
 
   it("detects forbidden substrings via does not include", async () => {
-    const taskPath = await writeTempTask(`agent runtime_support v0
+    const taskPath = await writeTempTask(`task runtime_support v0
 
 goal "Ensure reply does not leak notes"
 
@@ -218,7 +218,7 @@ return reply
   });
 
   it("passes citation checks", async () => {
-    const taskPath = await writeTempTask(`agent runtime_research v0
+    const taskPath = await writeTempTask(`task runtime_research v0
 
 goal "Check citations"
 
@@ -259,7 +259,7 @@ return brief
  Line
 +New line
 `;
-    const taskPath = await writeTempTask(`agent runtime_patch v0
+    const taskPath = await writeTempTask(`task runtime_patch v0
 
 goal "Ensure patch is constrained"
 
@@ -297,7 +297,7 @@ return patch
   });
 
   it("writes files with structured file.write payloads", async () => {
-    const taskPath = await writeTempTask(`agent runtime_write v0
+    const taskPath = await writeTempTask(`task runtime_write v0
 
 goal "Write a file"
 
@@ -327,7 +327,7 @@ return result
   });
 
   it("reports test run failures without aborting execution", async () => {
-    const taskPath = await writeTempTask(`agent runtime_tests v0
+    const taskPath = await writeTempTask(`task runtime_tests v0
 
 goal "Run tests"
 
@@ -359,7 +359,7 @@ return result
   });
 
   it("blocks command injection via shell metacharacters", async () => {
-    const taskPath = await writeTempTask(`agent runtime_injection v0
+    const taskPath = await writeTempTask(`task runtime_injection v0
 
 goal "Test injection prevention"
 
@@ -383,7 +383,7 @@ return result
   });
 
   it("blocks path traversal in file.read", async () => {
-    const taskPath = await writeTempTask(`agent runtime_traversal v0
+    const taskPath = await writeTempTask(`task runtime_traversal v0
 
 goal "Test path traversal prevention"
 
@@ -407,7 +407,7 @@ return contents
   });
 
   it("blocks path traversal in file.write", async () => {
-    const taskPath = await writeTempTask(`agent runtime_write_traversal v0
+    const taskPath = await writeTempTask(`task runtime_write_traversal v0
 
 goal "Test path traversal prevention on write"
 
@@ -425,7 +425,7 @@ return result
   });
 
   it("handles return expressions with colons (URLs)", async () => {
-    const taskPath = await writeTempTask(`agent runtime_colon v0
+    const taskPath = await writeTempTask(`task runtime_colon v0
 
 goal "Return value with URL"
 
@@ -465,7 +465,7 @@ return {
     const diffTask = path.join(repoDir, "diff.aex");
     await fs.writeFile(
       diffTask,
-      `agent runtime_git_diff v0
+      `task runtime_git_diff v0
 
 goal "Read repo diff"
 
@@ -494,7 +494,7 @@ return diff
     const applyTask = path.join(repoDir, "apply.aex");
     await fs.writeFile(
       applyTask,
-      `agent runtime_git_apply v0
+      `task runtime_git_apply v0
 
 goal "Apply diff"
 
@@ -524,7 +524,7 @@ return { status: "applied" }
   });
 
   it("aligns step graph with LangGraph plan", async () => {
-    const taskPath = await writeTempTask(`agent compat_demo v0
+    const taskPath = await writeTempTask(`task compat_demo v0
 
 goal "Cross-runtime consistency"
 
@@ -566,7 +566,7 @@ describe("matchPattern", () => {
 
 describe("if/for control flow", () => {
   it("executes if body when condition is true", async () => {
-    const taskPath = await writeTempTask(`agent if_true v0
+    const taskPath = await writeTempTask(`task if_true v0
 
 goal "If true"
 
@@ -592,7 +592,7 @@ return inner
   });
 
   it("skips if body when condition is false", async () => {
-    const taskPath = await writeTempTask(`agent if_false v0
+    const taskPath = await writeTempTask(`task if_false v0
 
 goal "If false"
 
@@ -619,7 +619,7 @@ return result
 
   it("iterates for loop over list", async () => {
     const events: Array<Record<string, unknown>> = [];
-    const taskPath = await writeTempTask(`agent for_loop v0
+    const taskPath = await writeTempTask(`task for_loop v0
 
 goal "Loop"
 
@@ -645,7 +645,7 @@ return loaded
   });
 
   it("budget counts per for iteration", async () => {
-    const taskPath = await writeTempTask(`agent for_budget v0
+    const taskPath = await writeTempTask(`task for_budget v0
 
 goal "Budget in loop"
 
@@ -760,7 +760,7 @@ describe("policy inheritance", () => {
   });
 
   it("applies inherited policy at runtime", async () => {
-    const taskPath = await writeTempTask(`agent policy_inherit v0
+    const taskPath = await writeTempTask(`task policy_inherit v0
 
 goal "Policy inheritance"
 
@@ -826,7 +826,7 @@ describe("structured logger", () => {
 
   it("integrates with runTask logger option", async () => {
     const logger = createStructuredLogger();
-    const taskPath = await writeTempTask(`agent logger_test v0
+    const taskPath = await writeTempTask(`task logger_test v0
 
 goal "Structured logging"
 
@@ -850,7 +850,7 @@ return result
 
 describe("remote tool registry", () => {
   it("passes registry option to runTask", async () => {
-    const taskPath = await writeTempTask(`agent registry_test v0
+    const taskPath = await writeTempTask(`task registry_test v0
 
 goal "Test custom tools"
 
@@ -951,7 +951,7 @@ describe("input validation", () => {
   });
 
   it("blocks execution in runTask when inputs are invalid", async () => {
-    const taskPath = await writeTempTask(`agent input_check v0
+    const taskPath = await writeTempTask(`task input_check v0
 
 goal "Validate inputs"
 
@@ -990,7 +990,7 @@ return result
 
   it("emits structured events for input issues", async () => {
     const events: Array<{ event: string; data?: Record<string, unknown> }> = [];
-    const taskPath = await writeTempTask(`agent input_events v0
+    const taskPath = await writeTempTask(`task input_events v0
 
 goal "Log input issues"
 
@@ -1019,7 +1019,7 @@ return r
 
 describe("budget enforcement", () => {
   it("blocks when contract budget is exceeded", async () => {
-    const taskPath = await writeTempTask(`agent budget_test v0
+    const taskPath = await writeTempTask(`task budget_test v0
 
 goal "Test budget"
 
@@ -1043,7 +1043,7 @@ return r2
   });
 
   it("allows execution within budget", async () => {
-    const taskPath = await writeTempTask(`agent budget_ok v0
+    const taskPath = await writeTempTask(`task budget_ok v0
 
 goal "Within budget"
 
@@ -1067,7 +1067,7 @@ return r1
   });
 
   it("policy budget overrides when lower than contract", async () => {
-    const taskPath = await writeTempTask(`agent budget_policy v0
+    const taskPath = await writeTempTask(`task budget_policy v0
 
 goal "Policy override"
 
@@ -1302,7 +1302,7 @@ budget calls=50
   it("extracts policy layer from task contract", async () => {
     const { parseAEX } = await import("@aex-lang/parser");
     const parsed = parseAEX(
-      `agent fix_test v0
+      `task fix_test v0
 
 goal "Fix test."
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseAEX, ParseFailure, compileTask } from "@aex-lang/parser";
 
-const SAMPLE_TASK = `agent fix_test v0
+const SAMPLE_TASK = `task fix_test v0
 
 goal "Fix the failing test with the smallest safe change."
 
@@ -92,7 +92,7 @@ describe("parseAEX", () => {
   });
 
   it("captures budget declarations as numeric values", () => {
-    const source = `agent demo v0
+    const source = `task demo v0
 
 goal "Budget check"
 
@@ -108,7 +108,7 @@ return result
   });
 
   it("collects instructions for make steps and errors on malformed syntax", () => {
-    const valid = `agent writer v0
+    const valid = `task writer v0
 
 goal "Compose"
 
@@ -129,7 +129,7 @@ return draft
       expect(make.inputs).toEqual(["notes"]);
     }
 
-    const invalid = `agent writer v0
+    const invalid = `task writer v0
 
 goal "Compose"
 
@@ -151,7 +151,7 @@ return draft
   });
 
   it("tracks confirmation gates and multi-line return blocks", () => {
-    const source = `agent confirmation v0
+    const source = `task confirmation v0
 
 goal "Test confirms"
 
@@ -179,7 +179,7 @@ return {
   });
 
   it("reports unclosed return blocks", () => {
-    const source = `agent sample v0
+    const source = `task sample v0
 
 goal "broken return"
 
@@ -218,7 +218,7 @@ return {
   });
 
   it("parses if statements with indented body", () => {
-    const source = `agent cond v0
+    const source = `task cond v0
 
 goal "Conditional"
 
@@ -249,7 +249,7 @@ return result
   });
 
   it("parses for statements with indented body", () => {
-    const source = `agent loop v0
+    const source = `task loop v0
 
 goal "Loop"
 
@@ -279,7 +279,7 @@ return done
   });
 
   it("parses nested if inside for", () => {
-    const source = `agent nested v0
+    const source = `task nested v0
 
 goal "Nested"
 
@@ -314,7 +314,7 @@ return done
   });
 
   it("compiles if and for to IR", () => {
-    const source = `agent ctrl v0
+    const source = `task ctrl v0
 
 goal "Control flow"
 

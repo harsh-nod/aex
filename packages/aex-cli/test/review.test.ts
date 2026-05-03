@@ -34,7 +34,7 @@ const SAMPLE_POLICY = `policy workspace v0
 
 goal "Default boundary."
 
-use file.read, file.write, tests.run, git.*
+allow file.read, file.write, tests.run, git.*
 deny network.*, secrets.read
 
 confirm before file.write

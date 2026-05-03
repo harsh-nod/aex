@@ -5,7 +5,7 @@ Guide an agent through analyzing a pull request diff and producing a structured 
 ## Contract
 
 ```aex
-agent review_pr v0
+task review_pr v0
 
 goal "Review a pull request for correctness, risk, and test coverage."
 
@@ -51,7 +51,7 @@ policy review v0
 
 goal "Read-only boundary for code review workflows."
 
-use git.diff, file.read
+allow git.diff, file.read
 deny file.write, network.*, secrets.read
 
 budget calls=20

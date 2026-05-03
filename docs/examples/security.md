@@ -9,7 +9,7 @@ Apply a reviewed patch with runtime safeguards — verifying the diff is valid, 
 ## Contract
 
 ```aex
-agent threat_monitor v0
+task threat_monitor v0
 
 goal "Apply a reviewed patch with runtime safeguards."
 

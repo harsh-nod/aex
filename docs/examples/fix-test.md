@@ -5,7 +5,7 @@ Constrain a coding agent to apply the minimal patch that makes tests pass — bl
 ## Contract
 
 ```aex
-agent fix_test v0
+task fix_test v0
 
 goal "Fix the failing test with the smallest safe change."
 
@@ -60,7 +60,7 @@ policy fix_test v0
 
 goal "Security boundary for fix-test workflows."
 
-use file.read, file.write, tests.run
+allow file.read, file.write, tests.run
 deny network.*, secrets.read
 
 confirm before file.write

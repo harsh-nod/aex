@@ -5,7 +5,7 @@ Constrain web research by capping total calls, requiring citations, and separati
 ## Contract
 
 ```aex
-agent research_brief v0
+task research_brief v0
 
 goal "Create a cited research brief."
 

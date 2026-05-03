@@ -1,4 +1,4 @@
-agent fix_test v0
+task fix_test v0
 
 goal "Fix the failing test with the smallest safe change."
 

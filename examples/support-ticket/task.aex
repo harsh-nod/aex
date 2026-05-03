@@ -1,4 +1,4 @@
-agent support_ticket v0
+task support_ticket v0
 
 goal "Draft a customer support reply using CRM context."
 

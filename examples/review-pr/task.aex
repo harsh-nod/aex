@@ -1,4 +1,4 @@
-agent review_pr v0
+task review_pr v0
 
 goal "Review a pull request for correctness, risk, and test coverage."
 

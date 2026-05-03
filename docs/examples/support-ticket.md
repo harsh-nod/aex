@@ -5,7 +5,7 @@ Draft a customer support response using CRM context — while blocking outbound 
 ## Contract
 
 ```aex
-agent support_ticket v0
+task support_ticket v0
 
 goal "Draft a customer support reply using CRM context."
 
@@ -49,7 +49,7 @@ policy support v0
 
 goal "CRM access boundary for support workflows."
 
-use crm.lookup, ticket.read, email.draft
+allow crm.lookup, ticket.read, email.draft
 deny email.send, payment.*, admin.*, secrets.read
 
 confirm before email.draft

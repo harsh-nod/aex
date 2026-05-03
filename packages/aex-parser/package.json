@@ -1,6 +1,6 @@
 {
   "name": "@aex-lang/parser",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Parser for AEX task contracts",
   "license": "MIT",
   "repository": {

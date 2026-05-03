@@ -11,7 +11,7 @@
 
 ## Implemented in Repo
 
-> All `@aex-lang/*` packages are **published on npm** (v0.0.3). APIs are **not yet stable** — expect breaking changes before v1.0.
+> All `@aex-lang/*` packages are **published on npm** (v0.0.4). APIs are **not yet stable** — expect breaking changes before v1.0.
 
 1. **Runtime** <small>(Alpha)</small>
    - [x] Built-in checks (`patch touches only`, diff linting)

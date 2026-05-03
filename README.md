@@ -173,7 +173,7 @@ Meta-tools are handled locally by the proxy — never forwarded to upstream. The
 
 ## Status
 
-AEX is pre-release software (v0.0.3). All packages are published on npm under the `@aex-lang` scope. Expect API changes before v1.0.
+AEX is pre-release software (v0.0.4). All packages are published on npm under the `@aex-lang` scope. Expect API changes before v1.0.
 
 ## Documentation
 

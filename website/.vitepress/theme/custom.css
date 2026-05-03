@@ -555,3 +555,319 @@ a:hover {
 .dark .pre-release-banner a:hover {
   color: #fff;
 }
+
+/* ── Hero animations ── */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-intro h1 {
+  animation: fadeInUp 0.8s ease-out both;
+}
+
+.hero-subtitle {
+  animation: fadeInUp 0.8s ease-out 0.12s both;
+}
+
+.hero-tagline {
+  animation: fadeInUp 0.8s ease-out 0.24s both;
+}
+
+.hero-actions {
+  animation: fadeInUp 0.8s ease-out 0.36s both;
+}
+
+/* ── Pipeline diagram ── */
+
+@keyframes pipelinePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 255, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(37, 99, 255, 0.35);
+  }
+}
+
+@keyframes flowDash {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+.pipeline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 2.5rem auto 1rem;
+  max-width: 820px;
+  padding: 0 1rem;
+  flex-wrap: nowrap;
+}
+
+.pipeline-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.2rem;
+  border-radius: 10px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--aex-card-bg);
+  border: 1px solid var(--aex-card-border);
+  color: var(--vp-c-text-1);
+  animation: pipelinePulse 3s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.pipeline-node:nth-child(1) { animation-delay: 0s; }
+.pipeline-node:nth-child(2) { animation-delay: 0.5s; }
+.pipeline-node:nth-child(3) { animation-delay: 1s; }
+.pipeline-node:nth-child(4) { animation-delay: 1.5s; }
+.pipeline-node:nth-child(5) { animation-delay: 2s; }
+
+.pipeline-arrow {
+  width: 32px;
+  height: 2px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.pipeline-arrow svg {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 12px;
+  overflow: visible;
+}
+
+.pipeline-arrow svg line {
+  stroke: var(--vp-c-brand-1);
+  stroke-width: 2;
+  stroke-dasharray: 6 6;
+  animation: flowDash 0.8s linear infinite;
+}
+
+.pipeline-arrow svg polygon {
+  fill: var(--vp-c-brand-1);
+}
+
+@media (max-width: 768px) {
+  .pipeline {
+    flex-direction: column;
+    gap: 0;
+    align-items: center;
+  }
+
+  .pipeline-arrow {
+    width: 2px;
+    height: 24px;
+  }
+
+  .pipeline-arrow svg {
+    width: 12px;
+    height: 24px;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .pipeline-node {
+    width: 100%;
+    max-width: 220px;
+  }
+}
+
+/* ── Architecture diagrams ── */
+
+.arch-diagram {
+  margin: 2.5rem auto;
+  text-align: center;
+  max-width: 780px;
+  padding: 0 1rem;
+}
+
+.arch-diagram svg {
+  width: 100%;
+  height: auto;
+  max-height: 260px;
+}
+
+.arch-diagram svg text {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  fill: var(--vp-c-text-1);
+}
+
+.arch-diagram svg .arch-box {
+  fill: var(--aex-card-bg);
+  stroke: var(--aex-card-border);
+  stroke-width: 1.5;
+  rx: 10;
+}
+
+.arch-diagram svg .arch-box-accent {
+  fill: none;
+  stroke: var(--vp-c-brand-1);
+  stroke-width: 2;
+  rx: 10;
+}
+
+.arch-diagram svg .arch-arrow {
+  stroke: var(--vp-c-brand-1);
+  stroke-width: 1.5;
+  marker-end: url(#arrowhead);
+}
+
+.arch-diagram svg .arch-arrow-back {
+  stroke: var(--vp-c-text-2);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+  marker-end: url(#arrowhead-dim);
+}
+
+.arch-diagram svg .arch-label {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--vp-font-family-heading);
+}
+
+.arch-diagram svg .arch-sublabel {
+  font-size: 10px;
+  fill: var(--vp-c-text-2);
+}
+
+@keyframes proxyGlow {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+  50% { filter: drop-shadow(0 0 12px rgba(37, 99, 255, 0.3)); }
+}
+
+.arch-diagram svg .proxy-group {
+  animation: proxyGlow 4s ease-in-out infinite;
+}
+
+/* ── Merge diagram ── */
+
+.merge-diagram {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem auto;
+  max-width: 720px;
+  padding: 0 1rem;
+}
+
+.merge-box {
+  background: var(--aex-card-bg);
+  border: 1px solid var(--aex-card-border);
+  border-radius: 12px;
+  padding: 1.2rem 1rem;
+  text-align: left;
+}
+
+.merge-box.merge-result {
+  border-color: var(--vp-c-brand-1);
+  box-shadow: 0 0 16px rgba(37, 99, 255, 0.15);
+}
+
+.merge-box h5 {
+  font-family: var(--vp-font-family-heading);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+  margin: 0 0 0.6rem;
+  letter-spacing: 0.04em;
+}
+
+.merge-box code {
+  display: block;
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--vp-c-text-2);
+}
+
+.merge-op {
+  font-family: var(--vp-font-family-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--vp-c-text-2);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .merge-diagram {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .merge-op {
+    font-size: 1.2rem;
+  }
+}
+
+/* ── Checkpoint flow diagram ── */
+
+.checkpoint-flow {
+  margin: 2.5rem auto;
+  text-align: center;
+  max-width: 700px;
+  padding: 0 1rem;
+}
+
+.checkpoint-flow svg {
+  width: 100%;
+  height: auto;
+}
+
+.checkpoint-flow svg text {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  fill: var(--vp-c-text-1);
+}
+
+.checkpoint-flow svg .cp-box {
+  fill: var(--aex-card-bg);
+  stroke: var(--aex-card-border);
+  stroke-width: 1.5;
+  rx: 8;
+}
+
+.checkpoint-flow svg .cp-box-save {
+  fill: none;
+  stroke: #22c55e;
+  stroke-width: 2;
+  rx: 8;
+}
+
+.checkpoint-flow svg .cp-box-resume {
+  fill: none;
+  stroke: var(--vp-c-brand-1);
+  stroke-width: 2;
+  rx: 8;
+}
+
+/* ── Reduced motion ── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

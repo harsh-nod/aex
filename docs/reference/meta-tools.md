@@ -145,6 +145,53 @@ If the task requests tools not allowed by the current policy, the `warnings` arr
 
 ## Workflow: Checkpoint and Resume
 
+<div class="checkpoint-flow">
+<svg viewBox="0 0 620 170" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="cp-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="var(--vp-c-brand-1, #2563ff)"/>
+    </marker>
+    <marker id="cp-arrow-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#22c55e"/>
+    </marker>
+  </defs>
+  <!-- Session 1 -->
+  <rect class="cp-box" x="10" y="20" width="120" height="50"/>
+  <text x="70" y="40" text-anchor="middle" font-weight="600" font-size="12">Session 1</text>
+  <text x="70" y="56" text-anchor="middle" font-size="10" fill="var(--vp-c-text-2, #666)">Claude Code</text>
+  <!-- Arrow to work -->
+  <line x1="130" y1="45" x2="168" y2="45" stroke="var(--vp-c-brand-1, #2563ff)" stroke-width="1.5" marker-end="url(#cp-arrow)"/>
+  <!-- Work steps -->
+  <rect class="cp-box" x="170" y="20" width="100" height="50"/>
+  <text x="220" y="40" text-anchor="middle" font-size="10">file.read</text>
+  <text x="220" y="54" text-anchor="middle" font-size="10">tests.run</text>
+  <!-- Arrow to checkpoint -->
+  <line x1="270" y1="45" x2="308" y2="45" stroke="#22c55e" stroke-width="1.5" marker-end="url(#cp-arrow-green)"/>
+  <!-- Checkpoint -->
+  <rect class="cp-box-save" x="310" y="15" width="120" height="60"/>
+  <text x="370" y="38" text-anchor="middle" font-weight="600" font-size="11" fill="#22c55e">checkpoint</text>
+  <text x="370" y="54" text-anchor="middle" font-size="10" fill="var(--vp-c-text-2, #666)">"fix-auth"</text>
+  <!-- Arrow down to disk -->
+  <line x1="370" y1="75" x2="370" y2="100" stroke="#22c55e" stroke-width="1.5" marker-end="url(#cp-arrow-green)"/>
+  <!-- Disk -->
+  <rect class="cp-box" x="310" y="105" width="120" height="45"/>
+  <text x="370" y="123" text-anchor="middle" font-size="9" fill="var(--vp-c-text-2, #666)">.aex/checkpoints/</text>
+  <text x="370" y="137" text-anchor="middle" font-size="9" fill="var(--vp-c-text-2, #666)">fix-auth/</text>
+  <!-- Arrow from disk to resume -->
+  <line x1="430" y1="127" x2="468" y2="127" stroke="var(--vp-c-brand-1, #2563ff)" stroke-width="1.5" marker-end="url(#cp-arrow)"/>
+  <!-- Resume -->
+  <rect class="cp-box-resume" x="470" y="100" width="120" height="55"/>
+  <text x="530" y="122" text-anchor="middle" font-weight="600" font-size="11" fill="var(--vp-c-brand-1, #2563ff)">resume</text>
+  <text x="530" y="138" text-anchor="middle" font-size="10" fill="var(--vp-c-text-2, #666)">"fix-auth"</text>
+  <!-- Arrow up to Session 2 -->
+  <line x1="530" y1="100" x2="530" y2="75" stroke="var(--vp-c-brand-1, #2563ff)" stroke-width="1.5" marker-end="url(#cp-arrow)"/>
+  <!-- Session 2 -->
+  <rect class="cp-box" x="470" y="20" width="120" height="50"/>
+  <text x="530" y="40" text-anchor="middle" font-weight="600" font-size="12">Session 2</text>
+  <text x="530" y="56" text-anchor="middle" font-size="10" fill="var(--vp-c-text-2, #666)">Codex / Claude</text>
+</svg>
+</div>
+
 ### Session 1 — Start work, checkpoint mid-session
 
 ```

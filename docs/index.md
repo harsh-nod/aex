@@ -3,11 +3,11 @@ title: AEX Overview
 ---
 
 <div class="hero-intro">
-  <h1>Prompts Are Not Permissions</h1>
+  <h1>The Agent Contract Layer</h1>
   <p class="hero-tagline">
-    AEX defines <strong>policies</strong> (ambient security boundaries) and <strong>task contracts</strong> (per-task execution rules) in one readable format. The runtime enforces the most restrictive combination — prompt injection cannot bypass what the model never gets to call.
+    Policies. Contracts. Checkpoints.<br>One format, enforced at runtime.
   </p>
-  <p class="hero-subtitle"><em>Plans are not contracts.</em> AEX turns agent plans into enforceable task contracts.</p>
+  <p class="hero-subtitle"><em>Prompts are not permissions. Plans are not contracts.</em></p>
   <div class="hero-actions">
     <a class="action primary" href="/aex/quickstart">Get Started</a>
     <a class="action" href="/aex/language/overview#policy-files">Policy Files</a>
@@ -17,11 +17,60 @@ title: AEX Overview
 
 ## How It Works
 
-```
-User prompt → aex draft → LLM generates contract → aex review → human approves → aex run → enforced execution
-```
+<div class="pipeline">
+  <div class="pipeline-node">aex draft</div>
+  <div class="pipeline-arrow"><svg viewBox="0 0 32 12"><line x1="0" y1="6" x2="24" y2="6"/><polygon points="24,2 32,6 24,10"/></svg></div>
+  <div class="pipeline-node">aex review</div>
+  <div class="pipeline-arrow"><svg viewBox="0 0 32 12"><line x1="0" y1="6" x2="24" y2="6"/><polygon points="24,2 32,6 24,10"/></svg></div>
+  <div class="pipeline-node">aex run</div>
+  <div class="pipeline-arrow"><svg viewBox="0 0 32 12"><line x1="0" y1="6" x2="24" y2="6"/><polygon points="24,2 32,6 24,10"/></svg></div>
+  <div class="pipeline-node">checkpoint</div>
+  <div class="pipeline-arrow"><svg viewBox="0 0 32 12"><line x1="0" y1="6" x2="24" y2="6"/><polygon points="24,2 32,6 24,10"/></svg></div>
+  <div class="pipeline-node">resume</div>
+</div>
 
-The model proposes. The human reviews. AEX enforces.
+The model drafts. The human reviews. AEX enforces. Sessions persist.
+
+<div class="arch-diagram">
+<svg viewBox="0 0 680 180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="var(--vp-c-brand-1)"/>
+    </marker>
+    <marker id="arrowhead-dim" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="var(--vp-c-text-2)"/>
+    </marker>
+  </defs>
+  <!-- Client box -->
+  <rect class="arch-box" x="10" y="40" width="140" height="90"/>
+  <text class="arch-label" x="80" y="75" text-anchor="middle">Claude Code</text>
+  <text class="arch-sublabel" x="80" y="95" text-anchor="middle">or Codex CLI</text>
+  <text class="arch-sublabel" x="80" y="110" text-anchor="middle">or any MCP client</text>
+  <!-- Arrows -->
+  <line class="arch-arrow" x1="150" y1="72" x2="230" y2="72"/>
+  <line class="arch-arrow-back" x1="230" y1="98" x2="150" y2="98"/>
+  <!-- Proxy box -->
+  <g class="proxy-group">
+    <rect class="arch-box-accent" x="230" y="20" width="220" height="150"/>
+    <text class="arch-label" x="340" y="48" text-anchor="middle">AEX Proxy</text>
+    <!-- Policy rules -->
+    <rect class="arch-box" x="250" y="58" width="180" height="100"/>
+    <text class="arch-sublabel" x="268" y="78">deny network.*, secrets.*</text>
+    <text class="arch-sublabel" x="268" y="94">allow file.*, tests.run</text>
+    <text class="arch-sublabel" x="268" y="110">confirm file.write</text>
+    <text class="arch-sublabel" x="268" y="126">budget calls=100</text>
+    <text class="arch-sublabel" x="268" y="146">meta: checkpoint, resume</text>
+  </g>
+  <!-- Arrows -->
+  <line class="arch-arrow" x1="450" y1="72" x2="530" y2="72"/>
+  <line class="arch-arrow-back" x1="530" y1="98" x2="450" y2="98"/>
+  <!-- Upstream box -->
+  <rect class="arch-box" x="530" y="40" width="140" height="90"/>
+  <text class="arch-label" x="600" y="75" text-anchor="middle">Upstream</text>
+  <text class="arch-sublabel" x="600" y="95" text-anchor="middle">MCP Server</text>
+  <text class="arch-sublabel" x="600" y="110" text-anchor="middle">(your tools)</text>
+</svg>
+</div>
 
 <div class="demo-grid">
 <div class="demo-panel demo-danger">
@@ -171,7 +220,32 @@ return {
 </div>
 </div>
 
-When both are active, effective permissions are the most restrictive combination: allow is intersected, deny is unioned, and budget takes the minimum.
+When both are active, effective permissions are the most restrictive combination:
+
+<div class="merge-diagram">
+  <div class="merge-box">
+    <h5>Policy</h5>
+    <code>allow file.*, tests.*, git.*</code>
+    <code>deny network.*, secrets.*</code>
+    <code>budget calls=100</code>
+  </div>
+  <div class="merge-op">+</div>
+  <div class="merge-box">
+    <h5>Task</h5>
+    <code>use file.read, file.write, tests.run</code>
+    <code>deny secrets.read</code>
+    <code>budget calls=20</code>
+  </div>
+  <div class="merge-op">=</div>
+  <div class="merge-box merge-result">
+    <h5>Effective</h5>
+    <code>allow file.read, file.write, tests.run</code>
+    <code>deny network.*, secrets.*</code>
+    <code>budget calls=20</code>
+  </div>
+</div>
+
+Allow is intersected. Deny is unioned. Budget takes the minimum.
 
 ## Why AEX?
 

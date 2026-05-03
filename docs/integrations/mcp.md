@@ -182,8 +182,41 @@ aex run tasks/api-proxy.aex \
 
 Policies can extend base policies with the `extends` field for org-wide defaults.
 
+## Error Handling
+
+When the gateway blocks a tool call, surface a clear error to the client:
+
+```ts
+async function handleToolCall(toolName: string, args: unknown) {
+  if (!(await gateway.allows(toolName))) {
+    return {
+      error: `Tool "${toolName}" is blocked by contract.`,
+      code: "AEX_DENIED",
+    };
+  }
+
+  if (await gateway.requiresConfirmation(toolName)) {
+    const approved = await requestApproval(toolName);
+    if (!approved) {
+      return {
+        error: `Tool "${toolName}" denied by operator.`,
+        code: "AEX_CONFIRMATION_DENIED",
+      };
+    }
+  }
+
+  return await forwardToMCPServer(toolName, args);
+}
+```
+
+Common scenarios:
+- **Tool not in `use` list** — the contract doesn't declare it
+- **Tool matches `deny` pattern** — `deny network.*` blocks `network.fetch`
+- **Confirmation denied** — user rejected the `confirm before` gate
+
 ## See Also
 
 - [Policy Reference](/reference/policy) — runtime policy enforcement rules
 - [OpenAI Agents SDK](/integrations/openai-agents) — programmatic adapter for OpenAI agents
 - [CLI Reference](/reference/cli) — full list of CLI flags
+- [Meta-Tools Reference](/reference/meta-tools) — checkpoint, resume, list, review via proxy

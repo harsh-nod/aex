@@ -163,8 +163,43 @@ Codex: calls aex.run_task({ task: "tasks/fix-test.aex" })
 
 Meta-tools are automatically available when using `aex proxy`. See the [Meta-Tools Reference](/reference/meta-tools) for full details.
 
+## Troubleshooting
+
+### Proxy not intercepting calls
+
+Make sure the upstream command comes after `--`:
+
+```bash
+# Correct
+aex proxy -- npx -y your-mcp-server
+
+# Wrong — proxy tries to parse npx as a flag
+aex proxy npx -y your-mcp-server
+```
+
+### Policy not found
+
+The proxy auto-discovers `.aex/policy.aex` in the working directory. If your policy is elsewhere:
+
+```bash
+aex proxy --policy path/to/policy.aex -- npx -y your-mcp-server
+```
+
+### Tools missing from Codex
+
+The proxy filters `tools/list` responses, removing tools that are denied or not allowed. If a tool disappears, check your policy's `allow` and `deny` lists:
+
+```bash
+aex effective
+```
+
+### Budget resets
+
+Budget is tracked per proxy session. Restarting the proxy resets the counter. Use [checkpoints](/workflows/checkpoint-resume) to persist budget state across sessions.
+
 ## See Also
 
 - [Language Overview](/language/overview) — AEX policy and task syntax
 - [Claude Code Integration](/integrations/claude-code) — same proxy approach for Claude Code
 - [CLI Reference](/reference/cli) — full list of CLI flags
+- [Policy-Only Mode](/workflows/policy-mode) — step-by-step setup walkthrough

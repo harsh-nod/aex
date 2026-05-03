@@ -237,8 +237,63 @@ Meta-tools are automatically available when using `aex proxy`. See the [Meta-Too
 
 Use both together: `CLAUDE.md` for project-wide conventions, AEX policy for enforcing permission boundaries.
 
+## Troubleshooting
+
+### Hook not firing
+
+Verify your `.claude/settings.json` is valid JSON and the hook is under `PreToolUse`:
+
+```bash
+cat .claude/settings.json | python3 -m json.tool
+```
+
+The `matcher` must be `".*"` to catch all tools. Check that `aex` is on your PATH:
+
+```bash
+which aex
+```
+
+### Policy not found
+
+`aex gate` auto-discovers `.aex/policy.aex` in the working directory. If your policy is elsewhere, pass it explicitly:
+
+```json
+{ "matcher": ".*", "command": "aex gate --policy path/to/policy.aex" }
+```
+
+### Tool blocked unexpectedly
+
+Check which AEX capability the tool maps to:
+
+| If blocked | Maps to | Check your policy for |
+|---|---|---|
+| Bash | `shell.exec` | `allow shell.exec` |
+| WebFetch | `network.fetch` | Not in `deny network.*` |
+| Write | `file.write` | `allow file.write`, not `deny file.*` |
+
+Run `aex effective` to see the merged permissions:
+
+```bash
+aex effective
+```
+
+### Budget exhausted mid-session
+
+The budget resets per session. If you're hitting limits, increase the budget in your policy:
+
+```aex
+budget calls=200
+```
+
+Or use `aex proxy` with `--auto-confirm` for automated workflows where confirmation prompts would block:
+
+```bash
+aex proxy --auto-confirm -- npx your-mcp-server
+```
+
 ## See Also
 
 - [Language Overview](/language/overview) — AEX policy and task syntax
 - [Codex Integration](/integrations/codex) — same proxy approach for OpenAI Codex CLI
 - [CLI Reference](/reference/cli) — `aex gate`, `aex proxy`, and other commands
+- [Policy-Only Mode](/workflows/policy-mode) — step-by-step setup walkthrough

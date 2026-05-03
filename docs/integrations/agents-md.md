@@ -93,3 +93,26 @@ AGENTS.md tells an agent *how you want things done*. An AEX contract tells the r
 - `deny network.*` in an AEX contract means the runtime **blocks** any `network.*` tool call. There is no compliance gap.
 
 Both are useful. AGENTS.md provides context and intent. AEX provides guardrails.
+
+## Getting Started
+
+If you already have an `AGENTS.md`, adding AEX takes two steps:
+
+```bash
+# 1. Create a policy from your security guidelines
+aex init --policy
+# Edit .aex/policy.aex to match the rules in your AGENTS.md
+
+# 2. Set up enforcement
+# Claude Code: add aex gate hook to .claude/settings.json
+# Codex: aex proxy -- npx your-mcp-server
+```
+
+Your AGENTS.md continues to guide the model's behavior. The AEX policy enforces the boundaries you defined as guidelines.
+
+## See Also
+
+- [Claude Code Integration](/integrations/claude-code) — hook and proxy setup
+- [Codex Integration](/integrations/codex) — proxy setup for Codex CLI
+- [Policy Reference](/reference/policy) — policy syntax and merge semantics
+- [When to Use What](/workflows/when-to-use-what) — decision guide for policies vs contracts

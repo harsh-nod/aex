@@ -54,6 +54,16 @@ export default defineConfig({
           ]
         },
         {
+          text: "Workflows",
+          items: [
+            { text: "When to Use What", link: "/workflows/when-to-use-what" },
+            { text: "Policy-Only Mode", link: "/workflows/policy-mode" },
+            { text: "Draft, Review, and Run", link: "/workflows/draft-review-run" },
+            { text: "Checkpoint and Resume", link: "/workflows/checkpoint-resume" },
+            { text: "CI Validation", link: "/workflows/ci-validation" },
+          ]
+        },
+        {
           text: "Language",
           items: [{ text: "Overview", link: "/language/overview" }]
         },

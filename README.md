@@ -1,18 +1,37 @@
-# AEX
+# AEX — The Agent Contract Layer
 
-> **Executable contracts for AI agents.** Prompts are not permissions. Plans are not contracts.
+> Policies. Contracts. Checkpoints. One format, enforced at runtime.
 
-AEX is a tiny, readable contract format that constrains what an AI agent may do, what it must check, and what requires human approval. Install the CLI, add `.aex` files to your repo, and your existing agent stack gains an enforceable contract layer.
+AEX is a readable contract format that constrains what an AI agent may do, what it must check, and what requires human approval. Install the CLI, add `.aex` files to your repo, and your existing agent stack gains an enforceable contract layer with session persistence.
 
-AEX has two file types:
+## How It Works
 
-- **Policy** (`policy workspace v0`) — ambient security boundary for an entire session or repo
-- **Task** (`agent fix_test v0`) — specific execution contract for a single task
+```
+aex draft → aex review → aex run → aex checkpoint → aex resume
+```
 
-When both are active, the effective permissions are the most restrictive combination.
+The model drafts. The human reviews. AEX enforces. Sessions persist.
+
+## Three Layers
+
+```
+repo/
+  .aex/
+    policy.aex          ← always-on repo guardrails
+    checkpoints/        ← saved session state
+    runs/               ← generated one-off contracts
+  tasks/
+    fix-test.aex        ← reusable checked-in workflows
+```
+
+- **Policy** (`policy workspace v0`) — ambient security boundary for a session or repo
+- **Task** (`task fix_test v0`) — specific execution contract for a single task
+- **Checkpoint** — saved session state (audit log, budget, tool history) for cross-session continuity
+
+When policy and task are both active, effective permissions are the most restrictive combination: allow is intersected, deny is unioned, budget takes the minimum.
 
 ```aex
-agent fix_test v0
+task fix_test v0
 
 goal "Fix the failing test with the smallest safe change."
 
@@ -53,7 +72,7 @@ policy workspace v0
 
 goal "Default security boundary for this repository."
 
-use file.read, file.write, tests.run, git.*
+allow file.read, file.write, tests.run, git.*
 deny network.*, secrets.read
 
 confirm before file.write
@@ -63,10 +82,11 @@ budget calls=100
 
 ## Why AEX?
 
-- **Readable:** Learn the format from one file.
-- **Enforceable:** Tool use, checks, and human approvals are encoded and auditable.
-- **Portable:** Works alongside OpenAI Agents SDK, MCP, LangGraph, GitHub Actions, and any custom runtime.
-- **Diffable:** Task contracts live as text files, reviewable like code.
+- **Draft → Review → Run:** Generate contracts from natural language. Review permissions before executing. The model proposes, AEX enforces.
+- **Runtime Enforcement:** Tool calls, file scopes, diff checks, confirmations, and budgets are enforced at runtime — not by asking the model nicely.
+- **Session Checkpoints:** Save mid-session progress. Resume in any MCP client. Cross-client, cross-session continuity.
+- **Readable & Diffable:** Contracts are text files. Diff them, review them in PRs, reformat with `aex fmt`.
+- **Works With Your Stack:** Claude Code, Codex CLI, MCP servers, OpenAI Agents SDK, LangGraph, GitHub Actions.
 
 ## Install
 
@@ -92,43 +112,56 @@ npm install @aex-lang/parser @aex-lang/runtime
 # Create a policy boundary for your repo
 aex init --policy
 
-# Create a task contract
-aex init --task fix-test
-
-# Validate both
-aex check .aex/policy.aex
-aex check tasks/fix-test.aex
-
-# See effective permissions
-aex effective --contract tasks/fix-test.aex
-
-# Run with enforcement
-aex run tasks/fix-test.aex --inputs inputs.json --auto-confirm
-
-# Enforce with Claude Code (built-in tools via hook)
-# In .claude/settings.json: { "hooks": { "PreToolUse": [{ "matcher": ".*", "command": "aex gate" }] } }
-
-# Enforce MCP tools via proxy
-aex proxy -- npx -y your-mcp-server
-
-# Or: generate a contract from a prompt
+# Generate a contract from natural language
 aex draft "fix the failing test in src/foo.ts" --model anthropic
-aex review .aex/runs/20260502-fix-failing-test.aex --run
+
+# Review what it will do
+aex review .aex/runs/fix-failing-test.aex
+
+# Approve and execute
+aex review .aex/runs/fix-failing-test.aex --run
+
+# Or write contracts by hand
+aex init --task fix-test
+aex check tasks/fix-test.aex
+aex effective --contract tasks/fix-test.aex
+aex run tasks/fix-test.aex --inputs inputs.json --auto-confirm
+```
+
+## Enforcement
+
+```bash
+# Gate Claude Code built-in tools via hook
+# .claude/settings.json: { "hooks": { "PreToolUse": [{ "matcher": ".*", "command": "aex gate" }] } }
+
+# Gate MCP tools via proxy (with meta-tools: checkpoint, resume, list, review)
+aex proxy -- npx -y your-mcp-server
 ```
 
 The runtime enforces the intersection of policy and task permissions:
 
-- tool calls outside the allowed set are blocked
-- confirmation gates halt execution until approved
-- call budgets stop execution when the limit is exceeded
+- Tool calls outside the allowed set are blocked
+- Confirmation gates halt execution until approved
+- Call budgets stop execution when the limit is exceeded
 - `aex gate` gates Claude Code built-in tools (Read, Write, Bash, etc.)
-- `aex proxy` gates MCP tool calls against your `.aex/policy.aex`
+- `aex proxy` gates MCP tool calls and exposes meta-tools for checkpoint/resume
 
-`aex fmt` keeps contracts deterministic (use `--check` in CI), and `aex sign`/`aex verify` attach HMAC-backed provenance metadata for governance workflows.
+## MCP Meta-Tools
 
-## Works with
+The proxy exposes four meta-tools through the MCP protocol:
 
-- Claude Code (via `aex proxy`)
+| Tool | Description |
+|------|-------------|
+| `aex.checkpoint` | Save session state to disk |
+| `aex.resume` | Load a checkpoint and restore state |
+| `aex.list_tasks` | List available contracts and checkpoints |
+| `aex.run_task` | Review a contract's permissions |
+
+Meta-tools are handled locally by the proxy — never forwarded to upstream. They enable cross-session, cross-client workflows.
+
+## Works With
+
+- Claude Code (via `aex gate` + `aex proxy`)
 - Codex CLI (via `aex proxy`)
 - MCP servers
 - OpenAI Agents SDK
@@ -142,12 +175,12 @@ AEX is pre-release software (v0.0.3). All packages are published on npm under th
 
 ## Documentation
 
-The documentation site is published via GitHub Pages: once Actions completes, visit https://harsh-nod.github.io/aex for the latest guides.
+Full documentation at [harsh-nod.github.io/aex](https://harsh-nod.github.io/aex).
 
 ## Contributing
 
-We welcome pull requests for examples, adapters, checks, docs, and tooling. See [docs/community/contributing.md](docs/community/contributing.md) once the contribution guide is published.
+We welcome pull requests for examples, adapters, checks, docs, and tooling. See [docs/community/contributing.md](docs/community/contributing.md).
 
 ---
 
-**Prompts are not permissions.** Keep your agent. Add a contract.
+**Prompts are not permissions. Plans are not contracts.** Keep your agent. Add a contract.

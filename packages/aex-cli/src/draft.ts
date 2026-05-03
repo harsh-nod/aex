@@ -23,8 +23,28 @@ export interface DraftResult {
 }
 
 const STOP_WORDS = new Set([
-  "the", "a", "an", "in", "to", "for", "of", "this", "that", "and", "or",
-  "is", "it", "with", "on", "at", "by", "from", "as", "be", "my", "its",
+  "the",
+  "a",
+  "an",
+  "in",
+  "to",
+  "for",
+  "of",
+  "this",
+  "that",
+  "and",
+  "or",
+  "is",
+  "it",
+  "with",
+  "on",
+  "at",
+  "by",
+  "from",
+  "as",
+  "be",
+  "my",
+  "its",
 ]);
 
 export function deriveName(prompt: string): string {
@@ -259,14 +279,9 @@ export async function draftContract(
     contract = stripFences(raw);
 
     // Inject/override task name if the model used a different one
-    const headerMatch = contract.match(
-      /^(task|agent)\s+\S+\s+v[0-9.]+/m,
-    );
+    const headerMatch = contract.match(/^(task|agent)\s+\S+\s+v[0-9.]+/m);
     if (headerMatch) {
-      contract = contract.replace(
-        headerMatch[0],
-        `task ${taskName} v0`,
-      );
+      contract = contract.replace(headerMatch[0], `task ${taskName} v0`);
     } else if (!contract.match(/^(task|agent)\s/m)) {
       contract = `task ${taskName} v0\n\n${contract}`;
     }
@@ -275,17 +290,13 @@ export async function draftContract(
     allDiagnostics.length = 0;
     const parseResult = parseAEX(contract, { tolerant: true });
     for (const d of parseResult.diagnostics) {
-      allDiagnostics.push(
-        `Line ${d.line ?? "-"}: ${d.message}`,
-      );
+      allDiagnostics.push(`Line ${d.line ?? "-"}: ${d.message}`);
     }
 
     const validation = validateText(contract);
     for (const issue of validation.issues) {
       if (issue.severity === "error") {
-        allDiagnostics.push(
-          `${issue.code ?? ""} ${issue.message}`.trim(),
-        );
+        allDiagnostics.push(`${issue.code ?? ""} ${issue.message}`.trim());
       }
     }
 
@@ -305,10 +316,7 @@ export async function draftContract(
     const runsDir = path.resolve(process.cwd(), ".aex", "runs");
     await fs.mkdir(runsDir, { recursive: true });
     const timestamp = generateTimestampPrefix();
-    outputPath = path.join(
-      runsDir,
-      `${timestamp}-${taskName}.aex`,
-    );
+    outputPath = path.join(runsDir, `${timestamp}-${taskName}.aex`);
   }
 
   // Ensure parent directory exists

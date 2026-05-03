@@ -5,6 +5,6 @@ goal "Security boundary for the fix-test workspace."
 allow file.read, file.write, tests.run
 deny network.*, secrets.read
 
-confirm before file.write
-
 budget calls=20
+
+confirm before file.write

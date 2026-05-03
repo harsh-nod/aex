@@ -16,20 +16,39 @@ async function createTempDir(): Promise<string> {
   return fs.mkdtemp(path.join(tmpdir(), "aex-meta-"));
 }
 
-function createContext(cwd: string, overrides?: Partial<MetaToolContext>): MetaToolContext {
+function createContext(
+  cwd: string,
+  overrides?: Partial<MetaToolContext>,
+): MetaToolContext {
   return {
     cwd,
     callsUsed: 3,
     budget: 10,
     toolHistory: [
-      { tool: "file.read", timestamp: "2026-05-02T10:00:00Z", decision: "forward" },
-      { tool: "tests.run", timestamp: "2026-05-02T10:01:00Z", decision: "forward" },
-      { tool: "network.fetch", timestamp: "2026-05-02T10:02:00Z", decision: "block", reason: "deny_list" },
+      {
+        tool: "file.read",
+        timestamp: "2026-05-02T10:00:00Z",
+        decision: "forward",
+      },
+      {
+        tool: "tests.run",
+        timestamp: "2026-05-02T10:01:00Z",
+        decision: "forward",
+      },
+      {
+        tool: "network.fetch",
+        timestamp: "2026-05-02T10:02:00Z",
+        decision: "block",
+        reason: "deny_list",
+      },
     ],
     auditEvents: [
       { event: "tool.allowed", data: { tool: "file.read" } },
       { event: "tool.allowed", data: { tool: "tests.run" } },
-      { event: "tool.denied", data: { tool: "network.fetch", reason: "deny_list" } },
+      {
+        event: "tool.denied",
+        data: { tool: "network.fetch", reason: "deny_list" },
+      },
     ],
     permissions: {
       allow: ["file.read", "file.write", "tests.run"],
@@ -47,7 +66,7 @@ describe("isMetaTool", () => {
     expect(isMetaTool("aex.checkpoint")).toBe(true);
     expect(isMetaTool("aex.resume")).toBe(true);
     expect(isMetaTool("aex.list_tasks")).toBe(true);
-    expect(isMetaTool("aex.run_task")).toBe(true);
+    expect(isMetaTool("aex.review_task")).toBe(true);
   });
 
   it("returns false for non-meta-tools", () => {
@@ -62,13 +81,23 @@ describe("aex.checkpoint", () => {
     const cwd = await createTempDir();
     const ctx = createContext(cwd);
 
-    const result = await handleMetaTool("aex.checkpoint", { name: "test-cp" }, ctx) as { path: string; message: string };
+    const result = (await handleMetaTool(
+      "aex.checkpoint",
+      { name: "test-cp" },
+      ctx,
+    )) as { path: string; message: string };
 
     expect(result.path).toBe(".aex/checkpoints/test-cp/");
     expect(result.message).toContain("test-cp");
 
     // Verify checkpoint.json
-    const cpPath = path.join(cwd, ".aex", "checkpoints", "test-cp", "checkpoint.json");
+    const cpPath = path.join(
+      cwd,
+      ".aex",
+      "checkpoints",
+      "test-cp",
+      "checkpoint.json",
+    );
     const cpRaw = await fs.readFile(cpPath, "utf8");
     const cp = JSON.parse(cpRaw);
     expect(cp.name).toBe("test-cp");
@@ -77,7 +106,13 @@ describe("aex.checkpoint", () => {
     expect(cp.toolHistory).toHaveLength(3);
 
     // Verify audit.jsonl
-    const auditPath = path.join(cwd, ".aex", "checkpoints", "test-cp", "audit.jsonl");
+    const auditPath = path.join(
+      cwd,
+      ".aex",
+      "checkpoints",
+      "test-cp",
+      "audit.jsonl",
+    );
     const auditRaw = await fs.readFile(auditPath, "utf8");
     const lines = auditRaw.trim().split("\n");
     expect(lines).toHaveLength(3);
@@ -87,9 +122,19 @@ describe("aex.checkpoint", () => {
     const cwd = await createTempDir();
     const ctx = createContext(cwd);
 
-    await handleMetaTool("aex.checkpoint", { name: "with-desc", description: "Fixed auth bug" }, ctx);
+    await handleMetaTool(
+      "aex.checkpoint",
+      { name: "with-desc", description: "Fixed auth bug" },
+      ctx,
+    );
 
-    const cpPath = path.join(cwd, ".aex", "checkpoints", "with-desc", "checkpoint.json");
+    const cpPath = path.join(
+      cwd,
+      ".aex",
+      "checkpoints",
+      "with-desc",
+      "checkpoint.json",
+    );
     const cp = JSON.parse(await fs.readFile(cpPath, "utf8"));
     expect(cp.description).toBe("Fixed auth bug");
   });
@@ -98,9 +143,15 @@ describe("aex.checkpoint", () => {
     const cwd = await createTempDir();
     const ctx = createContext(cwd);
 
-    await expect(handleMetaTool("aex.checkpoint", { name: "../etc" }, ctx)).rejects.toThrow("Invalid checkpoint name");
-    await expect(handleMetaTool("aex.checkpoint", { name: "foo/bar" }, ctx)).rejects.toThrow("Invalid checkpoint name");
-    await expect(handleMetaTool("aex.checkpoint", { name: "" }, ctx)).rejects.toThrow("Invalid checkpoint name");
+    await expect(
+      handleMetaTool("aex.checkpoint", { name: "../etc" }, ctx),
+    ).rejects.toThrow("Invalid checkpoint name");
+    await expect(
+      handleMetaTool("aex.checkpoint", { name: "foo/bar" }, ctx),
+    ).rejects.toThrow("Invalid checkpoint name");
+    await expect(
+      handleMetaTool("aex.checkpoint", { name: "" }, ctx),
+    ).rejects.toThrow("Invalid checkpoint name");
   });
 });
 
@@ -124,7 +175,11 @@ describe("aex.resume", () => {
       },
     });
 
-    const result = await handleMetaTool("aex.resume", { name: "resume-test" }, resumeCtx) as {
+    const result = (await handleMetaTool(
+      "aex.resume",
+      { name: "resume-test" },
+      resumeCtx,
+    )) as {
       name: string;
       callsUsed: number;
       toolsCalled: string[];
@@ -147,7 +202,9 @@ describe("aex.resume", () => {
     const cwd = await createTempDir();
     const ctx = createContext(cwd);
 
-    await expect(handleMetaTool("aex.resume", { name: "nonexistent" }, ctx)).rejects.toThrow("not found");
+    await expect(
+      handleMetaTool("aex.resume", { name: "nonexistent" }, ctx),
+    ).rejects.toThrow("not found");
   });
 });
 
@@ -156,7 +213,9 @@ describe("aex.list_tasks", () => {
     const cwd = await createTempDir();
     const ctx = createContext(cwd);
 
-    const result = await handleMetaTool("aex.list_tasks", {}, ctx) as { tasks: unknown[] };
+    const result = (await handleMetaTool("aex.list_tasks", {}, ctx)) as {
+      tasks: unknown[];
+    };
     expect(result.tasks).toEqual([]);
   });
 
@@ -174,9 +233,13 @@ describe("aex.list_tasks", () => {
 
     // Create a checkpoint
     const ctx = createContext(cwd);
-    await handleMetaTool("aex.checkpoint", { name: "my-cp", description: "Checkpoint desc" }, ctx);
+    await handleMetaTool(
+      "aex.checkpoint",
+      { name: "my-cp", description: "Checkpoint desc" },
+      ctx,
+    );
 
-    const result = await handleMetaTool("aex.list_tasks", {}, ctx) as {
+    const result = (await handleMetaTool("aex.list_tasks", {}, ctx)) as {
       tasks: Array<{ name: string; type: string; goal?: string }>;
     };
 
@@ -193,7 +256,7 @@ describe("aex.list_tasks", () => {
   });
 });
 
-describe("aex.run_task", () => {
+describe("aex.review_task", () => {
   it("returns review summary for a valid contract", async () => {
     const cwd = await createTempDir();
     const tasksDir = path.join(cwd, "tasks");
@@ -222,7 +285,11 @@ return review
     );
 
     const ctx = createContext(cwd);
-    const result = await handleMetaTool("aex.run_task", { task: "tasks/review.aex" }, ctx) as {
+    const result = (await handleMetaTool(
+      "aex.review_task",
+      { task: "tasks/review.aex" },
+      ctx,
+    )) as {
       task: string;
       goal: string;
       requested: string[];
@@ -247,7 +314,9 @@ return review
     const cwd = await createTempDir();
     const ctx = createContext(cwd);
 
-    await expect(handleMetaTool("aex.run_task", { task: "nonexistent.aex" }, ctx)).rejects.toThrow("Cannot read task file");
+    await expect(
+      handleMetaTool("aex.review_task", { task: "nonexistent.aex" }, ctx),
+    ).rejects.toThrow("Cannot read task file");
   });
 });
 
@@ -313,9 +382,7 @@ describe("AEXProxy meta-tool integration", () => {
       jsonrpc: "2.0",
       id: 1,
       result: {
-        tools: [
-          { name: "file.read", description: "Read files" },
-        ],
+        tools: [{ name: "file.read", description: "Read files" }],
       },
     });
     const tools = (response.result as { tools: Array<{ name: string }> }).tools;
@@ -324,7 +391,7 @@ describe("AEXProxy meta-tool integration", () => {
     expect(names).toContain("aex.checkpoint");
     expect(names).toContain("aex.resume");
     expect(names).toContain("aex.list_tasks");
-    expect(names).toContain("aex.run_task");
+    expect(names).toContain("aex.review_task");
     expect(tools.length).toBe(1 + META_TOOL_DEFINITIONS.length);
   });
 

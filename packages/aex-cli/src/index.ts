@@ -36,7 +36,11 @@ import {
 } from "./signing.js";
 import { resolveModelHandler } from "./models/index.js";
 import { draftContract } from "./draft.js";
-import { buildReviewSummary, formatReviewText, executeAfterApproval } from "./review.js";
+import {
+  buildReviewSummary,
+  formatReviewText,
+  executeAfterApproval,
+} from "./review.js";
 
 const useColor =
   process.env.NO_COLOR === undefined &&
@@ -85,9 +89,18 @@ program
     const inputsPath = path.join(tasksDir, `${taskName}.inputs.json`);
     const policyPath = path.join(tasksDir, `${taskName}.policy.json`);
 
-    await writeIfMissing(taskPath, SAMPLE_CONTRACT.replace(/sample_task/g, taskName));
-    await writeIfMissing(inputsPath, `${JSON.stringify(SAMPLE_INPUTS, null, 2)}\n`);
-    await writeIfMissing(policyPath, `${JSON.stringify(SAMPLE_POLICY, null, 2)}\n`);
+    await writeIfMissing(
+      taskPath,
+      SAMPLE_CONTRACT.replace(/sample_task/g, taskName),
+    );
+    await writeIfMissing(
+      inputsPath,
+      `${JSON.stringify(SAMPLE_INPUTS, null, 2)}\n`,
+    );
+    await writeIfMissing(
+      policyPath,
+      `${JSON.stringify(SAMPLE_POLICY, null, 2)}\n`,
+    );
 
     process.stdout.write(
       `${c.green("✔")} Starter files created under ${tasksDir}\n`,
@@ -97,7 +110,10 @@ program
 program
   .command("parse")
   .argument("<file>", "AEX file to parse")
-  .option("--tolerant", "Return diagnostics instead of throwing on parse errors")
+  .option(
+    "--tolerant",
+    "Return diagnostics instead of throwing on parse errors",
+  )
   .description("Parse an AEX contract and emit the intermediate representation")
   .action(async (file: string, options: { tolerant?: boolean }) => {
     try {
@@ -105,9 +121,7 @@ program
         tolerant: Boolean(options.tolerant),
       });
       printDiagnostics(result.diagnostics);
-      process.stdout.write(
-        `${JSON.stringify(result.task, null, 2)}\n`,
-      );
+      process.stdout.write(`${JSON.stringify(result.task, null, 2)}\n`);
     } catch (error) {
       handleError(error);
     }
@@ -130,7 +144,9 @@ program
 program
   .command("compile")
   .argument("<file>", "AEX file to compile into JSON IR")
-  .description("Compile an AEX contract into its JSON intermediate representation")
+  .description(
+    "Compile an AEX contract into its JSON intermediate representation",
+  )
   .action(async (file: string) => {
     try {
       const result = await parseFile(resolveInput(file), { tolerant: true });
@@ -153,7 +169,10 @@ program
 program
   .command("fmt")
   .argument("<files...>", "AEX files to format")
-  .option("--check", "Check whether files are already formatted without writing")
+  .option(
+    "--check",
+    "Check whether files are already formatted without writing",
+  )
   .description("Format AEX contracts")
   .action(async (files: string[], options: { check?: boolean }) => {
     let failed = false;
@@ -172,15 +191,11 @@ program
 
       const { errors, warnings } = partitionIssues(result.issues);
       for (const warning of warnings) {
-        process.stderr.write(
-          `${c.yellow("warn")} ${formatIssue(warning)}\n`,
-        );
+        process.stderr.write(`${c.yellow("warn")} ${formatIssue(warning)}\n`);
       }
       if (errors.length > 0) {
         for (const issue of errors) {
-          process.stderr.write(
-            `${c.red("error")} ${formatIssue(issue)}\n`,
-          );
+          process.stderr.write(`${c.red("error")} ${formatIssue(issue)}\n`);
         }
         failed = true;
         continue;
@@ -198,9 +213,7 @@ program
 
       if (result.formatted !== result.original) {
         await fs.writeFile(resolved, result.formatted, "utf8");
-        process.stdout.write(
-          `${c.green("formatted")} ${resolved}\n`,
-        );
+        process.stdout.write(`${c.green("formatted")} ${resolved}\n`);
         changed = true;
       }
     }
@@ -309,119 +322,131 @@ program
 program
   .command("effective")
   .option("--contract <file>", "Path to a task contract .aex file")
-  .option("--policy <file>", "Path to a policy .aex file (auto-discovers if omitted)")
-  .description("Show effective permissions after merging policy and task contract")
-  .action(
-    async (options: { contract?: string; policy?: string }) => {
-      try {
-        const policyPath = options.policy
-          ? resolveInput(options.policy)
-          : await discoverPolicy();
+  .option(
+    "--policy <file>",
+    "Path to a policy .aex file (auto-discovers if omitted)",
+  )
+  .description(
+    "Show effective permissions after merging policy and task contract",
+  )
+  .action(async (options: { contract?: string; policy?: string }) => {
+    try {
+      const policyPath = options.policy
+        ? resolveInput(options.policy)
+        : await discoverPolicy();
 
-        if (!policyPath) {
-          process.stderr.write(
-            `${c.yellow("warn")} No policy found. Looked for .aex/policy.aex and aex.policy.aex\n`,
-          );
-          if (!options.contract) {
-            process.exitCode = 1;
-            return;
-          }
-        }
-
-        let policyLayer;
-        if (policyPath) {
-          const policyParsed = await parseFile(policyPath, { tolerant: true });
-          if (policyParsed.diagnostics.length > 0) {
-            printDiagnostics(policyParsed.diagnostics);
-          }
-          policyLayer = extractPolicyLayer(policyParsed.task);
-        }
-
-        let taskLayer;
-        let contractPath: string | undefined;
-        if (options.contract) {
-          contractPath = resolveInput(options.contract);
-          const taskParsed = await parseFile(contractPath, { tolerant: true });
-          if (taskParsed.diagnostics.length > 0) {
-            printDiagnostics(taskParsed.diagnostics);
-          }
-          taskLayer = extractPolicyLayer(taskParsed.task);
-        }
-
-        if (!policyLayer && !taskLayer) {
-          process.stderr.write(
-            `${c.red("error")} No policy or contract to analyze.\n`,
-          );
+      if (!policyPath) {
+        process.stderr.write(
+          `${c.yellow("warn")} No policy found. Looked for .aex/policy.aex and aex.policy.aex\n`,
+        );
+        if (!options.contract) {
           process.exitCode = 1;
           return;
         }
+      }
 
-        const effective = policyLayer
-          ? mergePolicyAndTask(policyLayer, taskLayer)
-          : mergePolicyAndTask(taskLayer!);
-
-        // Print header
-        if (policyPath) {
-          process.stdout.write(
-            `${c.cyan("Policy:")}   ${path.relative(process.cwd(), policyPath)}\n`,
-          );
+      let policyLayer;
+      if (policyPath) {
+        const policyParsed = await parseFile(policyPath, { tolerant: true });
+        if (policyParsed.diagnostics.length > 0) {
+          printDiagnostics(policyParsed.diagnostics);
         }
-        if (contractPath) {
-          process.stdout.write(
-            `${c.cyan("Contract:")} ${path.relative(process.cwd(), contractPath)}\n`,
-          );
+        policyLayer = extractPolicyLayer(policyParsed.task);
+      }
+
+      let taskLayer;
+      let contractPath: string | undefined;
+      if (options.contract) {
+        contractPath = resolveInput(options.contract);
+        const taskParsed = await parseFile(contractPath, { tolerant: true });
+        if (taskParsed.diagnostics.length > 0) {
+          printDiagnostics(taskParsed.diagnostics);
+        }
+        taskLayer = extractPolicyLayer(taskParsed.task);
+      }
+
+      if (!policyLayer && !taskLayer) {
+        process.stderr.write(
+          `${c.red("error")} No policy or contract to analyze.\n`,
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      const effective = policyLayer
+        ? mergePolicyAndTask(policyLayer, taskLayer)
+        : mergePolicyAndTask(taskLayer!);
+
+      // Print header
+      if (policyPath) {
+        process.stdout.write(
+          `${c.cyan("Policy:")}   ${path.relative(process.cwd(), policyPath)}\n`,
+        );
+      }
+      if (contractPath) {
+        process.stdout.write(
+          `${c.cyan("Contract:")} ${path.relative(process.cwd(), contractPath)}\n`,
+        );
+      }
+      process.stdout.write("\n");
+
+      // Print effective permissions
+      if (effective.allow.length > 0) {
+        process.stdout.write(`${c.green("Allowed:")}\n`);
+        for (const tool of effective.allow) {
+          process.stdout.write(`  ${tool}\n`);
         }
         process.stdout.write("\n");
-
-        // Print effective permissions
-        if (effective.allow.length > 0) {
-          process.stdout.write(`${c.green("Allowed:")}\n`);
-          for (const tool of effective.allow) {
-            process.stdout.write(`  ${tool}\n`);
-          }
-          process.stdout.write("\n");
-        }
-
-        if (effective.deny.length > 0) {
-          process.stdout.write(`${c.red("Denied:")}\n`);
-          for (const tool of effective.deny) {
-            process.stdout.write(`  ${tool}\n`);
-          }
-          process.stdout.write("\n");
-        }
-
-        if (effective.confirm.length > 0) {
-          process.stdout.write(`${c.yellow("Confirmation required:")}\n`);
-          for (const tool of effective.confirm) {
-            process.stdout.write(`  ${tool}\n`);
-          }
-          process.stdout.write("\n");
-        }
-
-        if (effective.budget !== undefined) {
-          process.stdout.write(`${c.cyan("Budget:")}\n`);
-          process.stdout.write(`  calls=${effective.budget}\n`);
-          process.stdout.write("\n");
-        }
-      } catch (error) {
-        handleError(error);
       }
-    },
-  );
+
+      if (effective.deny.length > 0) {
+        process.stdout.write(`${c.red("Denied:")}\n`);
+        for (const tool of effective.deny) {
+          process.stdout.write(`  ${tool}\n`);
+        }
+        process.stdout.write("\n");
+      }
+
+      if (effective.confirm.length > 0) {
+        process.stdout.write(`${c.yellow("Confirmation required:")}\n`);
+        for (const tool of effective.confirm) {
+          process.stdout.write(`  ${tool}\n`);
+        }
+        process.stdout.write("\n");
+      }
+
+      if (effective.budget !== undefined) {
+        process.stdout.write(`${c.cyan("Budget:")}\n`);
+        process.stdout.write(`  calls=${effective.budget}\n`);
+        process.stdout.write("\n");
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  });
 
 program
   .command("run")
   .argument("<file>", "AEX file to execute")
-  .option("--policy <policy>", "Path to a runtime policy JSON or .aex file (auto-discovers .aex/policy.aex if omitted)")
+  .option(
+    "--policy <policy>",
+    "Path to a runtime policy JSON or .aex file (auto-discovers .aex/policy.aex if omitted)",
+  )
   .option("--inputs <inputs>", "Path to an inputs JSON file")
   .option(
     "--auto-confirm",
     "Automatically approve confirmation gates (use with caution)",
   )
-  .option("--model <provider>", "Model provider for make steps (openai, anthropic)")
+  .option(
+    "--model <provider>",
+    "Model provider for make steps (openai, anthropic)",
+  )
   .option("--model-handler <path>", "Path to a custom model handler module")
   .option("--registry <url>", "URL of a remote tool registry")
-  .option("--otlp-endpoint <url>", "OpenTelemetry collector endpoint for trace export")
+  .option(
+    "--otlp-endpoint <url>",
+    "OpenTelemetry collector endpoint for trace export",
+  )
   .option("--log-json", "Output structured log events as JSON")
   .description("Execute an AEX contract using the local runtime (experimental)")
   .action(
@@ -475,7 +500,10 @@ program
           ? { url: options.registry }
           : undefined;
         const structuredLog = createStructuredLogger();
-        const auditEvents: Array<{ event: string; data?: Record<string, unknown> }> = [];
+        const auditEvents: Array<{
+          event: string;
+          data?: Record<string, unknown>;
+        }> = [];
         const logFn = options.logJson
           ? (event: { event: string; data?: Record<string, unknown> }) => {
               structuredLog.log(event);
@@ -506,9 +534,12 @@ program
         // Write audit log for .aex/runs/ tasks
         if (resolvedFile.includes(path.join(".aex", "runs"))) {
           const auditPath = resolvedFile.replace(/\.aex$/, ".audit.jsonl");
-          const auditContent = auditEvents
-            .map((e) => JSON.stringify({ ...e, timestamp: new Date().toISOString() }))
-            .join("\n") + "\n";
+          const auditContent =
+            auditEvents
+              .map((e) =>
+                JSON.stringify({ ...e, timestamp: new Date().toISOString() }),
+              )
+              .join("\n") + "\n";
           await fs.writeFile(auditPath, auditContent, "utf8");
           process.stdout.write(
             `${c.cyan("audit")} Log written to ${path.relative(process.cwd(), auditPath)}\n`,
@@ -517,17 +548,13 @@ program
 
         if (result.status === "blocked") {
           process.stderr.write(
-            `${c.yellow("runtime blocked")}: ${result.issues.join(
-              ", ",
-            )}\n`,
+            `${c.yellow("runtime blocked")}: ${result.issues.join(", ")}\n`,
           );
           process.exitCode = 1;
         } else {
           process.stdout.write(`${c.green("runtime success")}\n`);
           if (result.output !== undefined) {
-            process.stdout.write(
-              `${JSON.stringify(result.output, null, 2)}\n`,
-            );
+            process.stdout.write(`${JSON.stringify(result.output, null, 2)}\n`);
           }
         }
       } catch (error) {
@@ -538,19 +565,30 @@ program
 
 program
   .command("proxy")
-  .option("--upstream <cmd>", "Command to spawn as the upstream MCP server (deprecated, use -- instead)")
+  .option(
+    "--upstream <cmd>",
+    "Command to spawn as the upstream MCP server (deprecated, use -- instead)",
+  )
   .option("--contract <file>", "Path to a task contract .aex file")
-  .option("--policy <file>", "Path to a policy .aex file (auto-discovers if omitted)")
+  .option(
+    "--policy <file>",
+    "Path to a policy .aex file (auto-discovers if omitted)",
+  )
   .option("--auto-confirm", "Automatically approve confirmation gates")
   .allowUnknownOption(true)
-  .description("Start an MCP stdio proxy that enforces AEX policy on every tool call")
+  .description(
+    "Start an MCP stdio proxy that enforces AEX policy on every tool call",
+  )
   .action(
-    async (options: {
-      upstream?: string;
-      contract?: string;
-      policy?: string;
-      autoConfirm?: boolean;
-    }, cmd: Command) => {
+    async (
+      options: {
+        upstream?: string;
+        contract?: string;
+        policy?: string;
+        autoConfirm?: boolean;
+      },
+      cmd: Command,
+    ) => {
       try {
         // Support both: `aex proxy -- npx server --flag` and legacy `aex proxy --upstream "cmd"`
         const rawArgs = cmd.args;
@@ -587,7 +625,9 @@ program
 
         let taskLayer;
         if (options.contract) {
-          const taskParsed = await parseFile(resolveInput(options.contract), { tolerant: true });
+          const taskParsed = await parseFile(resolveInput(options.contract), {
+            tolerant: true,
+          });
           taskLayer = extractPolicyLayer(taskParsed.task);
         }
 
@@ -619,9 +659,13 @@ program
           stdio: ["pipe", "pipe", "inherit"],
         });
 
-        const logger = (event: { event: string; data?: Record<string, unknown> }) => {
+        const logger = (event: {
+          event: string;
+          data?: Record<string, unknown>;
+        }) => {
           process.stderr.write(
-            JSON.stringify({ ...event, timestamp: new Date().toISOString() }) + "\n",
+            JSON.stringify({ ...event, timestamp: new Date().toISOString() }) +
+              "\n",
           );
         };
 
@@ -650,10 +694,23 @@ program
 program
   .command("gate")
   .option("--contract <file>", "Path to a task contract .aex file")
-  .option("--policy <file>", "Path to a policy .aex file (auto-discovers if omitted)")
-  .description("Claude Code PreToolUse hook: evaluate tool calls against AEX policy")
+  .option(
+    "--policy <file>",
+    "Path to a policy .aex file (auto-discovers if omitted)",
+  )
+  .option(
+    "--allow-no-policy",
+    "Allow all tool calls when no policy is found (default: deny)",
+  )
+  .description(
+    "Claude Code PreToolUse hook: evaluate tool calls against AEX policy",
+  )
   .action(
-    async (options: { contract?: string; policy?: string }) => {
+    async (options: {
+      contract?: string;
+      policy?: string;
+      allowNoPolicy?: boolean;
+    }) => {
       try {
         // Read stdin
         const chunks: Buffer[] = [];
@@ -683,10 +740,21 @@ program
           : await discoverPolicy(input.cwd || undefined);
 
         if (!policyPath) {
-          // No policy — fail open
-          process.stdout.write(
-            JSON.stringify({ permissionDecision: "allow" }) + "\n",
-          );
+          if (options.allowNoPolicy) {
+            // Explicitly opted into fail-open
+            process.stdout.write(
+              JSON.stringify({ permissionDecision: "allow" }) + "\n",
+            );
+          } else {
+            // Fail closed — no policy means deny
+            process.stdout.write(
+              JSON.stringify({
+                permissionDecision: "deny",
+                reason:
+                  "No AEX policy found. Create one with `aex init --policy` or pass --allow-no-policy to allow all.",
+              }) + "\n",
+            );
+          }
           return;
         }
 
@@ -723,8 +791,7 @@ program
 
         process.stdout.write(JSON.stringify(result.output) + "\n");
       } catch (error) {
-        const msg =
-          error instanceof Error ? error.message : String(error);
+        const msg = error instanceof Error ? error.message : String(error);
         process.stderr.write(`aex gate: ${msg}\n`);
         process.exitCode = 2;
       }
@@ -734,13 +801,24 @@ program
 program
   .command("draft")
   .argument("<prompt>", "Natural language description of the task")
-  .option("--model <provider>", "Model provider (openai, anthropic, or provider:model)")
-  .option("--out <file>", "Output file path (defaults to .aex/runs/<timestamp>-<name>.aex)")
+  .option(
+    "--model <provider>",
+    "Model provider (openai, anthropic, or provider:model)",
+  )
+  .option(
+    "--out <file>",
+    "Output file path (defaults to .aex/runs/<timestamp>-<name>.aex)",
+  )
   .option("--name <name>", "Task name in snake_case")
-  .option("--policy <file>", "Policy file to constrain against (auto-discovers if omitted)")
+  .option(
+    "--policy <file>",
+    "Policy file to constrain against (auto-discovers if omitted)",
+  )
   .option("--from-plan <file>", "Read plan text from file instead of prompt")
   .option("--max-retries <n>", "Max retries on validation failure", "1")
-  .description("Generate a draft AEX task contract from a natural language prompt")
+  .description(
+    "Generate a draft AEX task contract from a natural language prompt",
+  )
   .action(
     async (
       prompt: string,
@@ -767,9 +845,7 @@ program
         const relPath = path.relative(process.cwd(), result.outputPath);
 
         if (result.valid) {
-          process.stdout.write(
-            `${c.green("✔")} Draft saved to ${relPath}\n`,
-          );
+          process.stdout.write(`${c.green("✔")} Draft saved to ${relPath}\n`);
         } else {
           process.stdout.write(
             `${c.yellow("⚠")} Draft saved to ${relPath} (has validation issues)\n`,
@@ -869,9 +945,7 @@ program
           const result = await executeAfterApproval(resolved, options);
 
           if (result.status === "blocked") {
-            process.stderr.write(
-              `${c.yellow("runtime blocked")}\n`,
-            );
+            process.stderr.write(`${c.yellow("runtime blocked")}\n`);
             process.exitCode = 1;
           } else {
             process.stdout.write(`${c.green("runtime success")}\n`);
@@ -891,23 +965,62 @@ program
 program
   .command("classify")
   .argument("<prompt>", "Natural language prompt to classify")
-  .description("Classify a prompt as exploratory, contract_recommended, or contract_required")
+  .description(
+    "Classify a prompt as exploratory, contract_recommended, or contract_required",
+  )
   .action((prompt: string) => {
     const lower = prompt.toLowerCase();
 
     const exploratoryWords = [
-      "explain", "summarize", "find", "inspect", "understand", "search",
-      "describe", "what", "where", "how", "why", "show", "list", "read",
-      "look", "check", "tell", "help",
+      "explain",
+      "summarize",
+      "find",
+      "inspect",
+      "understand",
+      "search",
+      "describe",
+      "what",
+      "where",
+      "how",
+      "why",
+      "show",
+      "list",
+      "read",
+      "look",
+      "check",
+      "tell",
+      "help",
     ];
     const contractRequiredWords = [
-      "deploy", "production", "payment", "send", "email", "admin",
-      "secrets", "migration", "publish", "release",
+      "deploy",
+      "production",
+      "payment",
+      "send",
+      "email",
+      "admin",
+      "secrets",
+      "migration",
+      "publish",
+      "release",
     ];
     const contractRecommendedWords = [
-      "fix", "update", "modify", "edit", "write", "delete", "create",
-      "add", "remove", "refactor", "change", "rename", "move", "install",
-      "upgrade", "patch", "migrate",
+      "fix",
+      "update",
+      "modify",
+      "edit",
+      "write",
+      "delete",
+      "create",
+      "add",
+      "remove",
+      "refactor",
+      "change",
+      "rename",
+      "move",
+      "install",
+      "upgrade",
+      "patch",
+      "migrate",
     ];
 
     let mode = "contract_recommended";
@@ -926,9 +1039,7 @@ program
       reason = "prompt implies read-only exploration, no side effects required";
     }
 
-    process.stdout.write(
-      JSON.stringify({ mode, reason }, null, 2) + "\n",
-    );
+    process.stdout.write(JSON.stringify({ mode, reason }, null, 2) + "\n");
   });
 
 void program.parseAsync(process.argv);
@@ -965,14 +1076,10 @@ function reportIssues(issues: ValidationIssue[]) {
   }
   const { errors, warnings } = partitionIssues(issues);
   for (const issue of errors) {
-    process.stderr.write(
-      `${c.red("error")} ${formatIssue(issue)}\n`,
-    );
+    process.stderr.write(`${c.red("error")} ${formatIssue(issue)}\n`);
   }
   for (const issue of warnings) {
-    process.stderr.write(
-      `${c.yellow("warn")} ${formatIssue(issue)}\n`,
-    );
+    process.stderr.write(`${c.yellow("warn")} ${formatIssue(issue)}\n`);
   }
   process.exitCode = errors.length > 0 ? 1 : 0;
 }
@@ -1004,8 +1111,10 @@ function validateIR(data: unknown): string[] {
   }
   if (ir.permissions && typeof ir.permissions === "object") {
     const perms = ir.permissions as Record<string, unknown>;
-    if (!Array.isArray(perms.use)) issues.push('"permissions.use" must be an array.');
-    if (!Array.isArray(perms.deny)) issues.push('"permissions.deny" must be an array.');
+    if (!Array.isArray(perms.use))
+      issues.push('"permissions.use" must be an array.');
+    if (!Array.isArray(perms.deny))
+      issues.push('"permissions.deny" must be an array.');
   }
   return issues;
 }
@@ -1018,7 +1127,13 @@ function validatePolicyData(data: unknown): string[] {
   }
   const policy = data as Record<string, unknown>;
   const _schema = policySchema;
-  const allowedKeys = new Set(["allow", "deny", "require_confirmation", "budget", "extends"]);
+  const allowedKeys = new Set([
+    "allow",
+    "deny",
+    "require_confirmation",
+    "budget",
+    "extends",
+  ]);
   for (const key of Object.keys(policy)) {
     if (!allowedKeys.has(key)) {
       issues.push(`Unknown policy field "${key}".`);
@@ -1030,7 +1145,11 @@ function validatePolicyData(data: unknown): string[] {
     }
   }
   if ("budget" in policy) {
-    if (!policy.budget || typeof policy.budget !== "object" || Array.isArray(policy.budget)) {
+    if (
+      !policy.budget ||
+      typeof policy.budget !== "object" ||
+      Array.isArray(policy.budget)
+    ) {
       issues.push('"budget" must be an object.');
     } else {
       const budget = policy.budget as Record<string, unknown>;
@@ -1115,9 +1234,7 @@ function createPromptConfirmHandler(): ConfirmationHandler | undefined {
 
 function logEvent(event: { event: string; data?: Record<string, unknown> }) {
   const payload = event.data ? JSON.stringify(event.data) : "";
-  process.stdout.write(
-    `${c.cyan(event.event.padEnd(16))} ${payload}\n`,
-  );
+  process.stdout.write(`${c.cyan(event.event.padEnd(16))} ${payload}\n`);
 }
 
 function handleError(error: unknown) {
@@ -1157,7 +1274,7 @@ return draft
 `;
 
 const SAMPLE_INPUTS = {
-  topic: "Replace this with your task topic"
+  topic: "Replace this with your task topic",
 };
 
 const SAMPLE_POLICY = {
@@ -1165,8 +1282,8 @@ const SAMPLE_POLICY = {
   deny: ["secrets.read", "network.*"],
   require_confirmation: [],
   budget: {
-    calls: 20
-  }
+    calls: 20,
+  },
 };
 
 const SAMPLE_POLICY_AEX = `policy workspace v0

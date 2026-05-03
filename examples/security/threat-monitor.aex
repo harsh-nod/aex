@@ -10,9 +10,11 @@ need target_files: list[str]
 need test_cmd: str
 
 do git.diff(paths=target_files) -> working_tree
+
 check working_tree is valid diff
 
 do tests.run(cmd=test_cmd) -> baseline
+
 check baseline.passed
 
 confirm before git.apply
@@ -20,16 +22,18 @@ confirm before git.apply
 do git.apply(diff=patch)
 
 check patch is valid diff
+
 check patch touches only target_files
 
 do tests.run(cmd=test_cmd) -> validation
+
 check validation.passed
 
 return {
-  status: "applied",
-  files: target_files,
-  tests: {
-    before: baseline.stdout,
-    after: validation.stdout
-  }
-}
+      status: "applied",
+      files: target_files,
+      tests: {
+        before: baseline.stdout,
+        after: validation.stdout
+      }
+    }

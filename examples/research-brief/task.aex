@@ -9,8 +9,9 @@ need question: str
 
 budget calls=8
 
-do web.search(q=question, n=5) -> hits
-do web.open(urls=hits[:3].url) -> pages
+do web.search(n=5, q=question) -> hits
+
+do web.open(urls="hits[:3].url") -> pages
 
 make brief: markdown from pages with:
   - answer the question

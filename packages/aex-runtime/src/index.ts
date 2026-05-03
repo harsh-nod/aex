@@ -10,10 +10,7 @@ import {
   AEXStep,
   matchesAny,
 } from "@aex-lang/parser";
-import {
-  validateParsed,
-  ValidationIssue,
-} from "@aex-lang/validator";
+import { validateParsed, ValidationIssue } from "@aex-lang/validator";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -53,7 +50,8 @@ export function composePolicies(...policies: RuntimePolicy[]): RuntimePolicy {
   for (const policy of policies) {
     if (policy.allow) allAllow.push(...policy.allow);
     if (policy.deny) allDeny.push(...policy.deny);
-    if (policy.require_confirmation) allConfirm.push(...policy.require_confirmation);
+    if (policy.require_confirmation)
+      allConfirm.push(...policy.require_confirmation);
     if (policy.budget) {
       for (const [key, value] of Object.entries(policy.budget)) {
         mergedBudget[key] =
@@ -64,7 +62,8 @@ export function composePolicies(...policies: RuntimePolicy[]): RuntimePolicy {
 
   if (allAllow.length > 0) result.allow = [...new Set(allAllow)];
   if (allDeny.length > 0) result.deny = [...new Set(allDeny)];
-  if (allConfirm.length > 0) result.require_confirmation = [...new Set(allConfirm)];
+  if (allConfirm.length > 0)
+    result.require_confirmation = [...new Set(allConfirm)];
   if (Object.keys(mergedBudget).length > 0) result.budget = mergedBudget;
 
   return result;
@@ -135,9 +134,14 @@ export function mergePolicyAndTask(
   return { allow, deny, confirm, budget };
 }
 
-export function extractPolicyLayer(task: import("@aex-lang/parser").AEXTask): PolicyLayer {
+export function extractPolicyLayer(
+  task: import("@aex-lang/parser").AEXTask,
+): PolicyLayer {
   const confirmTools = task.steps
-    .filter((s): s is import("@aex-lang/parser").AEXConfirmStep => s.kind === "confirm")
+    .filter(
+      (s): s is import("@aex-lang/parser").AEXConfirmStep =>
+        s.kind === "confirm",
+    )
     .map((s) => s.before);
   return {
     use: [...task.use],
@@ -185,7 +189,10 @@ export interface OTLPSpan {
   name: string;
   startTimeUnixNano: string;
   endTimeUnixNano: string;
-  attributes: Array<{ key: string; value: { stringValue?: string; intValue?: string } }>;
+  attributes: Array<{
+    key: string;
+    value: { stringValue?: string; intValue?: string };
+  }>;
 }
 
 export interface OTLPExportPayload {
@@ -206,9 +213,7 @@ function generateId(bytes: number): string {
   return Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function createStructuredLogger(
-  agentName?: string,
-): StructuredLogger {
+export function createStructuredLogger(agentName?: string): StructuredLogger {
   const events: RuntimeEvent[] = [];
   const traceId = generateId(16);
 
@@ -322,9 +327,11 @@ export interface ModelHandler {
 }
 
 export interface ConfirmationHandler {
-  (toolName: string, step: AEXDoStep, context: ExecutionContext): Promise<
-    boolean
-  >;
+  (
+    toolName: string,
+    step: AEXDoStep,
+    context: ExecutionContext,
+  ): Promise<boolean>;
 }
 
 export interface RemoteToolRegistry {
@@ -385,7 +392,10 @@ export async function fetchRemoteTools(
     );
   }
   const payload = (await response.json()) as {
-    tools?: Record<string, { sideEffect?: string; url?: string; description?: string }>;
+    tools?: Record<
+      string,
+      { sideEffect?: string; url?: string; description?: string }
+    >;
   };
   if (!payload.tools || typeof payload.tools !== "object") {
     throw new Error("Remote registry response must contain a `tools` object.");
@@ -432,7 +442,13 @@ function createRemoteToolHandler(
 }
 
 const KNOWN_TYPES = new Set([
-  "str", "num", "int", "bool", "file", "url", "json",
+  "str",
+  "num",
+  "int",
+  "bool",
+  "file",
+  "url",
+  "json",
 ]);
 
 function isKnownType(type: string): boolean {
@@ -445,18 +461,27 @@ function isKnownType(type: string): boolean {
 
 function matchesType(value: unknown, type: string): boolean {
   if (type === "str") return typeof value === "string";
-  if (type === "num") return typeof value === "number" && Number.isFinite(value);
+  if (type === "num")
+    return typeof value === "number" && Number.isFinite(value);
   if (type === "int") return Number.isInteger(value);
   if (type === "bool") return typeof value === "boolean";
   if (type === "json") return true;
   if (type === "file") return typeof value === "string" && value.length > 0;
   if (type === "url") {
     if (typeof value !== "string") return false;
-    try { new URL(value); return true; } catch { return false; }
+    try {
+      new URL(value);
+      return true;
+    } catch {
+      return false;
+    }
   }
   const listMatch = /^list\[(.+)\]$/.exec(type);
   if (listMatch) {
-    return Array.isArray(value) && value.every((item) => matchesType(item, listMatch[1]));
+    return (
+      Array.isArray(value) &&
+      value.every((item) => matchesType(item, listMatch[1]))
+    );
   }
   return false;
 }
@@ -530,9 +555,20 @@ export async function runTask(
     options.inputs ?? {},
   );
   if (inputIssues.length > 0) {
-    const logger = options.logger ?? (() => { /* noop */ });
+    const logger =
+      options.logger ??
+      (() => {
+        /* noop */
+      });
     for (const issue of inputIssues) {
-      logger({ event: issue.event, data: { input: issue.input, expected: issue.expected, actual: issue.actual } });
+      logger({
+        event: issue.event,
+        data: {
+          input: issue.input,
+          expected: issue.expected,
+          actual: issue.actual,
+        },
+      });
     }
     return {
       status: "blocked",
@@ -556,9 +592,11 @@ export async function runTask(
   const context: ExecutionContext = {
     inputs: options.inputs ?? {},
     variables: new Map<string, unknown>(),
-    logger: options.logger ?? (() => {
-      /* noop */
-    }),
+    logger:
+      options.logger ??
+      (() => {
+        /* noop */
+      }),
   };
 
   const effectiveOptions = mergedTools
@@ -771,10 +809,7 @@ function executeCheck(
   };
 }
 
-function executeReturn(
-  step: AEXReturnStep,
-  state: ExecutionState,
-): StepResult {
+function executeReturn(step: AEXReturnStep, state: ExecutionState): StepResult {
   const output = evaluateReturn(step.expression, state);
   return { status: "success", output };
 }
@@ -930,7 +965,10 @@ async function requestConfirmation(
   }
 }
 
-function evaluateCheck(condition: string, state: ExecutionState): {
+function evaluateCheck(
+  condition: string,
+  state: ExecutionState,
+): {
   ok: boolean;
   message?: string;
 } {
@@ -970,8 +1008,9 @@ function evaluateCheck(condition: string, state: ExecutionState): {
         };
   }
 
-  const notIncludeMatch =
-    /^([A-Za-z0-9_.-]+)\s+does not include\s+(.+)$/.exec(trimmed);
+  const notIncludeMatch = /^([A-Za-z0-9_.-]+)\s+does not include\s+(.+)$/.exec(
+    trimmed,
+  );
   if (notIncludeMatch) {
     const subject = asText(resolvePath(notIncludeMatch[1], state));
     const rawNeedle = notIncludeMatch[2].trim();
@@ -1032,10 +1071,7 @@ function evaluateCheck(condition: string, state: ExecutionState): {
   };
 }
 
-function evaluateReturn(
-  expression: string,
-  state: ExecutionState,
-): unknown {
+function evaluateReturn(expression: string, state: ExecutionState): unknown {
   const trimmed = expression.trim();
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
     const inner = trimmed.slice(1, -1);
@@ -1061,10 +1097,7 @@ function evaluateReturn(
   return resolveExpressionValue(trimmed, state);
 }
 
-function resolveExpressionValue(
-  value: string,
-  state: ExecutionState,
-): unknown {
+function resolveExpressionValue(value: string, state: ExecutionState): unknown {
   const unquoted = value.replace(/,$/, "").trim();
   if (unquoted.startsWith('"') && unquoted.endsWith('"')) {
     return unquoted.slice(1, -1);
@@ -1202,7 +1235,11 @@ const builtinTools: ToolRegistry = {
           exitCode: 0,
         };
       } catch (error) {
-        const err = error as { stdout?: string; stderr?: string; code?: number };
+        const err = error as {
+          stdout?: string;
+          stderr?: string;
+          code?: number;
+        };
         return {
           passed: false,
           stdout: err.stdout ?? "",
@@ -1351,12 +1388,17 @@ function normalizeWritePayload(args: Record<string, unknown>): WriteEntry[] {
     for (const entry of writes) {
       if (entry && typeof entry === "object") {
         const record = entry as Record<string, unknown>;
-        if (typeof record.path === "string" && typeof record.contents === "string") {
+        if (
+          typeof record.path === "string" &&
+          typeof record.contents === "string"
+        ) {
           entries.push({
             path: record.path,
             contents: record.contents,
             encoding:
-              typeof record.encoding === "string" ? record.encoding as BufferEncoding : undefined,
+              typeof record.encoding === "string"
+                ? (record.encoding as BufferEncoding)
+                : undefined,
           });
         }
       } else if (typeof entry === "string") {
@@ -1378,7 +1420,9 @@ function normalizeWritePayload(args: Record<string, unknown>): WriteEntry[] {
             path: filePath,
             contents: inner.contents,
             encoding:
-              typeof inner.encoding === "string" ? inner.encoding as BufferEncoding : undefined,
+              typeof inner.encoding === "string"
+                ? (inner.encoding as BufferEncoding)
+                : undefined,
           });
         }
       }
@@ -1393,7 +1437,10 @@ function normalizeWritePayload(args: Record<string, unknown>): WriteEntry[] {
     entries.push({
       path: args.path,
       contents: args.contents,
-      encoding: typeof args.encoding === "string" ? args.encoding as BufferEncoding : undefined,
+      encoding:
+        typeof args.encoding === "string"
+          ? (args.encoding as BufferEncoding)
+          : undefined,
     });
   }
 
@@ -1416,7 +1463,9 @@ async function applyDiff(
     return { applied: false, message: formatError(error) };
   } finally {
     await fs.rm(diffPath, { force: true }).catch(() => undefined);
-    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+    await fs
+      .rm(tempDir, { recursive: true, force: true })
+      .catch(() => undefined);
   }
 }
 

@@ -124,7 +124,9 @@ export function parseAEX(
   function parseSteps(baseIndent: number): AEXStep[] {
     const steps: AEXStep[] = [];
     let pendingMake: AEXMakeStep | undefined;
-    let pendingReturn: { expression: string; depth: number; startLine: number } | undefined;
+    let pendingReturn:
+      | { expression: string; depth: number; startLine: number }
+      | undefined;
 
     const flushPendingMake = () => {
       if (pendingMake) {
@@ -187,16 +189,25 @@ export function parseAEX(
 
       // Metadata (only at top level, baseIndent 0)
       if (baseIndent === 0) {
-        if (trimmed.startsWith("agent ") || trimmed.startsWith("policy ") || trimmed.startsWith("task ")) {
+        if (
+          trimmed.startsWith("agent ") ||
+          trimmed.startsWith("policy ") ||
+          trimmed.startsWith("task ")
+        ) {
           const keyword = trimmed.startsWith("policy ")
             ? "policy"
             : trimmed.startsWith("task ")
               ? "task"
               : "agent";
-          const regex = new RegExp(`^${keyword}\\s+([A-Za-z0-9_-]+)\\s+v([0-9.]+)$`);
+          const regex = new RegExp(
+            `^${keyword}\\s+([A-Za-z0-9_-]+)\\s+v([0-9.]+)$`,
+          );
           const match = regex.exec(trimmed);
           if (!match) {
-            diagnostics.push({ message: `Invalid ${keyword} declaration`, line: lineNum });
+            diagnostics.push({
+              message: `Invalid ${keyword} declaration`,
+              line: lineNum,
+            });
           } else {
             task.agent = { name: match[1], version: match[2] };
             if (keyword === "policy") {
@@ -210,7 +221,10 @@ export function parseAEX(
         if (trimmed.startsWith("goal ")) {
           const match = /^goal\s+"(.*)"$/.exec(trimmed);
           if (!match) {
-            diagnostics.push({ message: "Goal must be a quoted string", line: lineNum });
+            diagnostics.push({
+              message: "Goal must be a quoted string",
+              line: lineNum,
+            });
           } else {
             task.goal = match[1];
           }
@@ -226,7 +240,11 @@ export function parseAEX(
 
         if (trimmed.startsWith("allow ")) {
           if (!task.isPolicy) {
-            diagnostics.push({ message: "AEX121: `allow` is only valid in policy documents. Use `use file.read, tests.run` inside a task contract.", line: lineNum });
+            diagnostics.push({
+              message:
+                "AEX121: `allow` is only valid in policy documents. Use `use file.read, tests.run` inside a task contract.",
+              line: lineNum,
+            });
           } else {
             task.use.push(...splitList(trimmed.substring(6)));
           }
@@ -242,13 +260,20 @@ export function parseAEX(
 
         if (trimmed.startsWith("need ")) {
           if (task.isPolicy) {
-            diagnostics.push({ message: "AEX120: `need` is not allowed in a policy document. Policies define ambient authority only.", line: lineNum });
+            diagnostics.push({
+              message:
+                "AEX120: `need` is not allowed in a policy document. Policies define ambient authority only.",
+              line: lineNum,
+            });
             idx++;
             continue;
           }
           const match = /^need\s+([A-Za-z0-9_.-]+)\s*:\s*(.+)$/.exec(trimmed);
           if (!match) {
-            diagnostics.push({ message: "Invalid need declaration", line: lineNum });
+            diagnostics.push({
+              message: "Invalid need declaration",
+              line: lineNum,
+            });
           } else {
             task.needs[match[1]] = match[2];
           }
@@ -279,10 +304,23 @@ export function parseAEX(
 
       // Policy files cannot have execution steps
       if (task.isPolicy && baseIndent === 0) {
-        const stepKeywords = ["do ", "make ", "check ", "return ", "if ", "for "];
-        if (stepKeywords.some((kw) => trimmed.startsWith(kw)) && !trimmed.startsWith("confirm before ")) {
+        const stepKeywords = [
+          "do ",
+          "make ",
+          "check ",
+          "return ",
+          "if ",
+          "for ",
+        ];
+        if (
+          stepKeywords.some((kw) => trimmed.startsWith(kw)) &&
+          !trimmed.startsWith("confirm before ")
+        ) {
           const kw = trimmed.split(" ")[0];
-          diagnostics.push({ message: `AEX120: \`${kw}\` is not allowed in a policy document. Policies define ambient authority only. Use \`task <name> v0\` for ordered workflows.`, line: lineNum });
+          diagnostics.push({
+            message: `AEX120: \`${kw}\` is not allowed in a policy document. Policies define ambient authority only. Use \`task <name> v0\` for ordered workflows.`,
+            line: lineNum,
+          });
           idx++;
           continue;
         }
@@ -315,7 +353,10 @@ export function parseAEX(
             trimmed,
           );
         if (!match) {
-          diagnostics.push({ message: "Invalid make statement", line: lineNum });
+          diagnostics.push({
+            message: "Invalid make statement",
+            line: lineNum,
+          });
         } else {
           pendingMake = {
             kind: "make",
@@ -372,7 +413,10 @@ export function parseAEX(
       if (trimmed.startsWith("if ")) {
         const condition = trimmed.substring(3).trim();
         if (!condition) {
-          diagnostics.push({ message: "if statement requires a condition", line: lineNum });
+          diagnostics.push({
+            message: "if statement requires a condition",
+            line: lineNum,
+          });
           idx++;
           continue;
         }
@@ -432,7 +476,10 @@ export function parseAEX(
   task.steps = parseSteps(0);
 
   if (!task.agent) {
-    diagnostics.push({ message: "Missing agent/task/policy declaration", line: 0 });
+    diagnostics.push({
+      message: "Missing agent/task/policy declaration",
+      line: 0,
+    });
   }
   if (!task.goal) {
     diagnostics.push({ message: "Missing goal declaration", line: 0 });
@@ -445,7 +492,11 @@ export function parseAEX(
   return { task, diagnostics };
 }
 
-function peekBodyIndent(lines: string[], startIdx: number, parentIndent: number): number {
+function peekBodyIndent(
+  lines: string[],
+  startIdx: number,
+  parentIndent: number,
+): number {
   for (let i = startIdx; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     if (!trimmed || trimmed.startsWith("#")) continue;

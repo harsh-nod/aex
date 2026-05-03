@@ -89,7 +89,12 @@ export interface ProxyOptions {
 export type ProxyDecision =
   | { action: "forward" }
   | { action: "block"; response: JsonRpcResponse }
-  | { action: "meta"; toolName: string; params: Record<string, unknown>; requestId: string | number | null };
+  | {
+      action: "meta";
+      toolName: string;
+      params: Record<string, unknown>;
+      requestId: string | number | null;
+    };
 
 /**
  * MCP stdio proxy that sits between a client (Claude Code / Codex) and an
@@ -112,12 +117,19 @@ export class AEXProxy {
   }
 
   private logger(event: RuntimeEvent): void {
-    const timestamped = { ...event, timestamp: event.timestamp ?? new Date().toISOString() };
+    const timestamped = {
+      ...event,
+      timestamp: event.timestamp ?? new Date().toISOString(),
+    };
     this.auditEvents.push(timestamped);
     this.externalLogger(timestamped);
   }
 
-  private recordToolCall(tool: string, decision: "forward" | "block", reason?: string): void {
+  private recordToolCall(
+    tool: string,
+    decision: "forward" | "block",
+    reason?: string,
+  ): void {
     this.toolHistory.push({
       tool,
       timestamp: new Date().toISOString(),
@@ -184,7 +196,11 @@ export class AEXProxy {
       }
 
       // If this is a tools/list response, filter the tool list
-      if (msg.result && typeof msg.result === "object" && "tools" in (msg.result as object)) {
+      if (
+        msg.result &&
+        typeof msg.result === "object" &&
+        "tools" in (msg.result as object)
+      ) {
         msg = this.filterToolsList(msg);
       }
 
@@ -221,21 +237,35 @@ export class AEXProxy {
 
     // 1. Check deny list
     if (matchesAny(toolName, this.permissions.deny)) {
-      this.logger({ event: "tool.denied", data: { tool: toolName, reason: "deny_list" } });
+      this.logger({
+        event: "tool.denied",
+        data: { tool: toolName, reason: "deny_list" },
+      });
       this.recordToolCall(toolName, "block", "deny_list");
       return {
         action: "block",
-        response: errorResponse(requestId, -32600, `Tool "${toolName}" is denied by policy.`),
+        response: errorResponse(
+          requestId,
+          -32600,
+          `Tool "${toolName}" is denied by policy.`,
+        ),
       };
     }
 
     // 2. Check allow list
     if (!matchesAny(toolName, this.permissions.allow)) {
-      this.logger({ event: "tool.denied", data: { tool: toolName, reason: "not_allowed" } });
+      this.logger({
+        event: "tool.denied",
+        data: { tool: toolName, reason: "not_allowed" },
+      });
       this.recordToolCall(toolName, "block", "not_allowed");
       return {
         action: "block",
-        response: errorResponse(requestId, -32600, `Tool "${toolName}" is not in the allow list.`),
+        response: errorResponse(
+          requestId,
+          -32600,
+          `Tool "${toolName}" is not in the allow list.`,
+        ),
       };
     }
 
@@ -243,7 +273,14 @@ export class AEXProxy {
     if (this.permissions.budget !== undefined) {
       this.callsUsed++;
       if (this.callsUsed > this.permissions.budget) {
-        this.logger({ event: "budget.exhausted", data: { tool: toolName, used: this.callsUsed, limit: this.permissions.budget } });
+        this.logger({
+          event: "budget.exhausted",
+          data: {
+            tool: toolName,
+            used: this.callsUsed,
+            limit: this.permissions.budget,
+          },
+        });
         this.recordToolCall(toolName, "block", "budget_exhausted");
         return {
           action: "block",
@@ -259,7 +296,11 @@ export class AEXProxy {
         this.recordToolCall(toolName, "block", "confirm_required");
         return {
           action: "block",
-          response: errorResponse(requestId, -32600, `Tool "${toolName}" requires confirmation (use --auto-confirm to bypass).`),
+          response: errorResponse(
+            requestId,
+            -32600,
+            `Tool "${toolName}" requires confirmation (use --auto-confirm to bypass).`,
+          ),
         };
       }
       this.logger({ event: "confirm.auto_approved", data: { tool: toolName } });
@@ -275,7 +316,9 @@ export class AEXProxy {
    * Filter a tools/list response to remove tools not in the allow list or in the deny list.
    */
   filterToolsList(response: JsonRpcResponse): JsonRpcResponse {
-    const result = response.result as { tools?: Array<{ name: string; [key: string]: unknown }> };
+    const result = response.result as {
+      tools?: Array<{ name: string; [key: string]: unknown }>;
+    };
     if (!result.tools || !Array.isArray(result.tools)) {
       return response;
     }
@@ -322,7 +365,11 @@ export class AEXProxy {
           this.toolHistory = [...toolHistory];
         },
       };
-      const result = await handleMetaTool(decision.toolName, decision.params, ctx);
+      const result = await handleMetaTool(
+        decision.toolName,
+        decision.params,
+        ctx,
+      );
       this.logger({ event: "meta.handled", data: { tool: decision.toolName } });
       clientOut.write(
         JSON.stringify({

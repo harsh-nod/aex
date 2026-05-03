@@ -5,6 +5,17 @@ AEX provides two ways to enforce contracts with [OpenAI Codex CLI](https://githu
 1. **MCP Proxy** (recommended) — `aex proxy` sits between Codex and upstream MCP servers, gating every tool call against your policy
 2. **Static validation** — `aex check` validates contracts before a Codex run
 
+> **Important:** AEX only guards tool calls routed through `aex proxy`. If Codex calls tools directly (e.g., shell commands via its built-in sandbox), those calls bypass AEX. Use `aex proxy` for MCP-based tool servers where you need enforcement.
+
+## `aex proxy` vs `aex run`
+
+| Command | Purpose | When to use |
+|---------|---------|-------------|
+| `aex proxy` | MCP proxy — gates every tool call in real time | Ongoing agent sessions, exploratory work under policy |
+| `aex run` | Execute a specific task contract end-to-end | One-shot contract execution with full audit trail |
+
+`aex proxy` is a long-running process that sits between the client and server. `aex run` parses a contract, runs each step sequentially, and exits. Use `aex proxy` for policy enforcement during interactive sessions; use `aex run` when you have a specific contract to execute.
+
 ## MCP Proxy Setup
 
 ### 1. Create a policy
@@ -158,7 +169,7 @@ Codex can list available task contracts and checkpoints:
 
 ```
 Codex: calls aex.list_tasks()
-Codex: calls aex.run_task({ task: "tasks/fix-test.aex" })
+Codex: calls aex.review_task({ task: "tasks/fix-test.aex" })
 ```
 
 Meta-tools are automatically available when using `aex proxy`. See the [Meta-Tools Reference](/reference/meta-tools) for full details.

@@ -30,7 +30,7 @@ The proxy auto-discovers `.aex/policy.aex` and exposes four meta-tools alongside
 | `aex.checkpoint` | Save session state to disk |
 | `aex.resume` | Load a checkpoint and restore state |
 | `aex.list_tasks` | List available contracts and checkpoints |
-| `aex.run_task` | Review a contract's permissions |
+| `aex.review_task` | Review a contract's permissions |
 
 The agent works normally — reading files, running tests, making changes — all gated by the policy.
 

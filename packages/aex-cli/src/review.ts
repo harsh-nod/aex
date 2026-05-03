@@ -332,7 +332,8 @@ export async function executeAfterApproval(
 
   // Set up audit logging
   const structuredLog = createStructuredLogger();
-  const auditEvents: Array<{ event: string; data?: Record<string, unknown> }> = [];
+  const auditEvents: Array<{ event: string; data?: Record<string, unknown> }> =
+    [];
   const logFn = (event: { event: string; data?: Record<string, unknown> }) => {
     structuredLog.log(event);
     auditEvents.push(event);
@@ -349,9 +350,7 @@ export async function executeAfterApproval(
         output: process.stdout,
       });
       try {
-        const answer = await rl.question(
-          `Confirm tool "${toolName}"? [y/N]: `,
-        );
+        const answer = await rl.question(`Confirm tool "${toolName}"? [y/N]: `);
         return answer.trim().toLowerCase().startsWith("y");
       } finally {
         rl.close();
@@ -370,9 +369,12 @@ export async function executeAfterApproval(
   // Write audit log if task is in .aex/runs/
   if (resolved.includes(path.join(".aex", "runs"))) {
     const auditPath = resolved.replace(/\.aex$/, ".audit.jsonl");
-    const auditContent = auditEvents
-      .map((e) => JSON.stringify({ ...e, timestamp: new Date().toISOString() }))
-      .join("\n") + "\n";
+    const auditContent =
+      auditEvents
+        .map((e) =>
+          JSON.stringify({ ...e, timestamp: new Date().toISOString() }),
+        )
+        .join("\n") + "\n";
     await fs.writeFile(auditPath, auditContent, "utf8");
   }
 

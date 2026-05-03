@@ -28,9 +28,13 @@ export async function compileFileToLangGraph(
   filePath: string,
   options: CompileOptions = {},
 ): Promise<LangGraphPlan> {
-  const parsed = await parseFile(filePath, { tolerant: options.tolerant ?? true });
+  const parsed = await parseFile(filePath, {
+    tolerant: options.tolerant ?? true,
+  });
   const validation = validateParsed(parsed);
-  const errors = validation.issues.filter((issue) => issue.severity === "error");
+  const errors = validation.issues.filter(
+    (issue) => issue.severity === "error",
+  );
   if (errors.length > 0) {
     const formatted = errors
       .map((issue) =>
@@ -85,7 +89,7 @@ function generateNodeId(
 ): string {
   const base =
     step.kind === "do"
-      ? step.bind ?? `${step.tool}-${index}`
+      ? (step.bind ?? `${step.tool}-${index}`)
       : step.kind === "make"
         ? step.bind
         : `${step.kind}-${index}`;

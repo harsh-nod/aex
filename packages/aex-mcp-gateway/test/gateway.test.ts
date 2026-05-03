@@ -62,7 +62,12 @@ function toolsCallRequest(
   toolName: string,
   id: number = 1,
 ): { jsonrpc: "2.0"; id: number; method: string; params: { name: string } } {
-  return { jsonrpc: "2.0", id, method: "tools/call", params: { name: toolName } };
+  return {
+    jsonrpc: "2.0",
+    id,
+    method: "tools/call",
+    params: { name: toolName },
+  };
 }
 
 describe("AEXProxy", () => {
@@ -89,7 +94,9 @@ describe("AEXProxy", () => {
     const decision = proxy.handleToolsCall(toolsCallRequest("admin.delete"));
     expect(decision.action).toBe("block");
     if (decision.action === "block") {
-      expect(decision.response.error?.message).toContain("not in the allow list");
+      expect(decision.response.error?.message).toContain(
+        "not in the allow list",
+      );
     }
     expect(events[0].event).toBe("tool.denied");
     expect(events[0].data?.reason).toBe("not_allowed");
@@ -97,8 +104,12 @@ describe("AEXProxy", () => {
 
   it("enforces call budget", () => {
     const { proxy } = createProxy({ budget: 2 });
-    expect(proxy.handleToolsCall(toolsCallRequest("file.read", 1)).action).toBe("forward");
-    expect(proxy.handleToolsCall(toolsCallRequest("file.read", 2)).action).toBe("forward");
+    expect(proxy.handleToolsCall(toolsCallRequest("file.read", 1)).action).toBe(
+      "forward",
+    );
+    expect(proxy.handleToolsCall(toolsCallRequest("file.read", 2)).action).toBe(
+      "forward",
+    );
     const third = proxy.handleToolsCall(toolsCallRequest("file.read", 3));
     expect(third.action).toBe("block");
     if (third.action === "block") {
@@ -111,7 +122,9 @@ describe("AEXProxy", () => {
     const decision = proxy.handleToolsCall(toolsCallRequest("file.write"));
     expect(decision.action).toBe("block");
     if (decision.action === "block") {
-      expect(decision.response.error?.message).toContain("requires confirmation");
+      expect(decision.response.error?.message).toContain(
+        "requires confirmation",
+      );
     }
     expect(events[0].event).toBe("confirm.required");
   });

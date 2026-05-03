@@ -153,6 +153,16 @@ aex effective
 aex effective --contract tasks/fix-test.aex
 ```
 
+## `aex proxy` vs `aex run`
+
+| Command | Purpose | When to use |
+|---------|---------|-------------|
+| `aex gate` | PreToolUse hook — gates Claude Code's built-in tools | Always-on policy enforcement |
+| `aex proxy` | MCP proxy — gates upstream MCP tool calls | MCP server enforcement during interactive sessions |
+| `aex run` | Execute a specific task contract end-to-end | One-shot contract execution with full audit trail |
+
+`aex gate` and `aex proxy` are real-time enforcement layers. `aex run` parses a contract, runs each step, and exits.
+
 ## Contract Mode
 
 For tasks that modify code, use AEX's draft → review → run workflow instead of letting Claude freestyle:
@@ -221,7 +231,7 @@ Claude can list available task contracts and checkpoints:
 
 ```
 Claude: calls aex.list_tasks()
-Claude: calls aex.run_task({ task: "tasks/fix-test.aex" })
+Claude: calls aex.review_task({ task: "tasks/fix-test.aex" })
 ```
 
 Meta-tools are automatically available when using `aex proxy`. See the [Meta-Tools Reference](/reference/meta-tools) for full details.
@@ -255,10 +265,16 @@ which aex
 
 ### Policy not found
 
-`aex gate` auto-discovers `.aex/policy.aex` in the working directory. If your policy is elsewhere, pass it explicitly:
+`aex gate` **fails closed by default** — if no policy is found, all tool calls are denied. Create a policy with `aex init --policy`, or pass one explicitly:
 
 ```json
 { "matcher": ".*", "command": "aex gate --policy path/to/policy.aex" }
+```
+
+To allow all calls when no policy exists (not recommended), pass `--allow-no-policy`:
+
+```json
+{ "matcher": ".*", "command": "aex gate --allow-no-policy" }
 ```
 
 ### Tool blocked unexpectedly

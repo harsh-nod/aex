@@ -6,7 +6,7 @@ import { validateText } from "@aex-lang/validator";
 const EXAMPLES = [
   {
     label: "Fix Failing Test",
-    source: `agent fix_test v0
+    source: `task fix_test v0
 
 goal "Fix the failing test with the smallest safe change."
 
@@ -40,7 +40,7 @@ return {
   },
   {
     label: "Support Ticket",
-    source: `agent support_ticket v0
+    source: `task support_ticket v0
 
 goal "Draft a customer support reply using CRM context."
 
@@ -67,7 +67,7 @@ return draft`,
   },
   {
     label: "Hello World",
-    source: `agent hello v0
+    source: `task hello v0
 
 goal "Greet the user by name."
 
@@ -85,7 +85,7 @@ return result`,
 
 goal "Default security boundary for this repository."
 
-use file.read, file.write, tests.run, git.*
+allow file.read, file.write, tests.run, git.*
 deny network.*, secrets.read
 
 confirm before file.write

@@ -1,5 +1,7 @@
 # AEX — The Agent Contract Layer
 
+[![npm version](https://img.shields.io/npm/v/@aex-lang/cli.svg)](https://www.npmjs.com/package/@aex-lang/cli)
+
 > Policies. Contracts. Checkpoints. One format, enforced at runtime.
 
 AEX is a readable contract format that constrains what an AI agent may do, what it must check, and what requires human approval. Install the CLI, add `.aex` files to your repo, and your existing agent stack gains an enforceable contract layer with session persistence.
@@ -155,7 +157,7 @@ The proxy exposes four meta-tools through the MCP protocol:
 | `aex.checkpoint` | Save session state to disk |
 | `aex.resume` | Load a checkpoint and restore state |
 | `aex.list_tasks` | List available contracts and checkpoints |
-| `aex.run_task` | Review a contract's permissions |
+| `aex.review_task` | Review a contract's permissions |
 
 Meta-tools are handled locally by the proxy — never forwarded to upstream. They enable cross-session, cross-client workflows.
 

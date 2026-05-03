@@ -20,8 +20,7 @@ describe("deriveName", () => {
   });
 
   it("truncates to 30 characters", () => {
-    const long =
-      "refactor the entire authentication system to use jwt tokens";
+    const long = "refactor the entire authentication system to use jwt tokens";
     const name = deriveName(long);
     expect(name.length).toBeLessThanOrEqual(30);
   });
@@ -42,7 +41,7 @@ describe("stripFences", () => {
   });
 
   it("removes plain ``` fences", () => {
-    const input = '```\ntask bar v0\n```';
+    const input = "```\ntask bar v0\n```";
     expect(stripFences(input)).toBe("task bar v0");
   });
 
@@ -52,7 +51,7 @@ describe("stripFences", () => {
   });
 
   it("handles uppercase AEX", () => {
-    const input = '```AEX\ntask foo v0\n```';
+    const input = "```AEX\ntask foo v0\n```";
     expect(stripFences(input)).toBe("task foo v0");
   });
 });

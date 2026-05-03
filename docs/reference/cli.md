@@ -200,7 +200,7 @@ The proxy exposes four meta-tools through the MCP protocol. These are handled lo
 | `aex.checkpoint` | Save session state (audit log, budget, tool history) to disk |
 | `aex.resume` | Load a checkpoint and restore budget state |
 | `aex.list_tasks` | List available contracts and checkpoints |
-| `aex.run_task` | Review a contract's permissions without executing |
+| `aex.review_task` | Review a contract's permissions without executing |
 
 Meta-tools bypass policy — they manage AEX itself. They appear automatically in `tools/list` responses. See the [Meta-Tools Reference](/reference/meta-tools) for input schemas and examples.
 
@@ -220,6 +220,7 @@ Claude Code `PreToolUse` hook that evaluates every tool call against your AEX po
 |------|-------------|
 | `--contract <file>` | Optional task contract for additional constraints |
 | `--policy <file>` | Explicit policy file (otherwise auto-discovered from `cwd` in hook input) |
+| `--allow-no-policy` | Allow all tool calls when no policy is found (default: deny all) |
 
 ### Behavior
 
@@ -227,7 +228,7 @@ Claude Code `PreToolUse` hook that evaluates every tool call against your AEX po
 - Maps Claude Code tool names to AEX capabilities (e.g., `Write` → `file.write`)
 - Evaluates against allow/deny/confirm/budget rules
 - Responds with `permissionDecision`: `"allow"`, `"deny"`, or `"ask"`
-- Fails open if no policy is found (allows all calls)
+- Fails closed if no policy is found (denies all calls); pass `--allow-no-policy` to allow all
 - Tracks budget state across calls via `.aex/.gate-budget.json`
 
 ### Tool Name Mapping
@@ -355,8 +356,10 @@ Hook the commands into CI:
 Or use the [`setup-aex`](https://github.com/harsh-nod/aex/tree/main/action) GitHub Action:
 
 ```yaml
-- uses: harsh-nod/aex@main
+- uses: harsh-nod/aex/action@main
   with:
     version: latest
 - run: aex check tasks/*.aex
 ```
+
+> **Note:** The action is at `action/action.yml` in the repo, so the `uses:` path includes the `/action` subdirectory.

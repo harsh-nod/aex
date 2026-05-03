@@ -9,6 +9,7 @@ need test_cmd: str
 need target_files: list[file]
 
 do tests.run(cmd=test_cmd) -> failure
+
 do file.read(paths=target_files) -> sources
 
 make patch: diff from failure, sources with:
@@ -17,16 +18,19 @@ make patch: diff from failure, sources with:
   - do not touch unrelated files
 
 check patch is valid diff
+
 check patch touches only target_files
+
 confirm before file.write
 
 do file.write(diff=patch) -> result
+
 do tests.run(cmd=test_cmd) -> final
 
 check final.passed
 
 return {
-  status: "fixed",
-  patch: patch,
-  test: final
-}
+      status: "fixed",
+      patch: patch,
+      test: final
+    }

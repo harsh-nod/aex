@@ -83,17 +83,25 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
     // but we also validate here in case the parser was run in tolerant mode)
     if (Object.keys(task.needs).length > 0) {
       issues.push({
-        message: "AEX120: `need` is not allowed in a policy document. Policies define ambient authority only.",
+        message:
+          "AEX120: `need` is not allowed in a policy document. Policies define ambient authority only.",
         severity: "error",
         code: "AEX120",
       });
     }
     const execSteps = task.steps.filter(
-      (s) => s.kind === "do" || s.kind === "make" || s.kind === "return" || s.kind === "check" || s.kind === "if" || s.kind === "for",
+      (s) =>
+        s.kind === "do" ||
+        s.kind === "make" ||
+        s.kind === "return" ||
+        s.kind === "check" ||
+        s.kind === "if" ||
+        s.kind === "for",
     );
     if (execSteps.length > 0) {
       issues.push({
-        message: "AEX120: Execution steps are not allowed in a policy document. Policies define ambient authority only.",
+        message:
+          "AEX120: Execution steps are not allowed in a policy document. Policies define ambient authority only.",
         severity: "error",
         code: "AEX120",
       });
@@ -122,7 +130,13 @@ export function validateParsed(parsed: ParseResult): ValidationResult {
 }
 
 const KNOWN_TYPES = new Set([
-  "str", "num", "int", "bool", "file", "url", "json",
+  "str",
+  "num",
+  "int",
+  "bool",
+  "file",
+  "url",
+  "json",
 ]);
 
 function isKnownBaseType(type: string): boolean {
@@ -168,12 +182,24 @@ function validateSteps(
         knownValues.add(step.bind);
         break;
       case "if":
-        validateSteps(step.body, allowedTools, deniedTools, knownValues, issues);
+        validateSteps(
+          step.body,
+          allowedTools,
+          deniedTools,
+          knownValues,
+          issues,
+        );
         break;
       case "for": {
         const scopedValues = new Set(knownValues);
         scopedValues.add(step.variable);
-        validateSteps(step.body, allowedTools, deniedTools, scopedValues, issues);
+        validateSteps(
+          step.body,
+          allowedTools,
+          deniedTools,
+          scopedValues,
+          issues,
+        );
         break;
       }
       default:

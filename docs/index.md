@@ -79,13 +79,13 @@ The model drafts. The human reviews. AEX enforces. Sessions persist.
 ```
 User: "Fix the failing test in src/foo.ts"
 
-Agent: reads src/foo.ts ✓
-Agent: reads ~/.ssh/id_rsa ✓
-Agent: writes to 14 unrelated files ✓
-Agent: POSTs data to external URL ✓
+Agent: reads src/foo.ts                    ✓
+Agent: reads .env (has DB credentials)     ✓
+Agent: edits src/auth.ts (unrelated)       ✓
+Agent: runs `curl` to post diagnostics     ✓
 ```
 
-The agent does whatever the model decides. Nothing stops scope creep, data exfiltration, or unintended writes.
+Without constraints, the agent can read secrets, modify unrelated files, and make network calls — all to "help" with a test fix.
 </div>
 <div class="demo-panel demo-safe">
 <h4>With AEX</h4>

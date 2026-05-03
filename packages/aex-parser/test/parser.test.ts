@@ -81,7 +81,9 @@ describe("parseAEX", () => {
       if (error instanceof ParseFailure) {
         expect(error.diagnostics).toEqual(
           expect.arrayContaining([
-            expect.objectContaining({ message: "Missing agent/task/policy declaration" }),
+            expect.objectContaining({
+              message: "Missing agent/task/policy declaration",
+            }),
             expect.objectContaining({ message: "Missing goal declaration" }),
           ]),
         );

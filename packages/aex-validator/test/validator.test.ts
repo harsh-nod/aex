@@ -91,7 +91,9 @@ return report
       expect.arrayContaining([
         expect.objectContaining({
           severity: "error",
-          message: expect.stringContaining('references unknown value "summary"'),
+          message: expect.stringContaining(
+            'references unknown value "summary"',
+          ),
         }),
       ]),
     );

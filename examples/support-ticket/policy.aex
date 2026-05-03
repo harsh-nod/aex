@@ -5,6 +5,6 @@ goal "CRM access boundary for support workflows."
 allow crm.lookup, ticket.read, email.draft
 deny email.send, payment.*, admin.*, secrets.read
 
-confirm before email.draft
-
 budget calls=30
+
+confirm before email.draft

@@ -56,17 +56,31 @@ describe("mapToolName", () => {
 describe("extractToolPath", () => {
   it("extracts file_path from Read/Write/Edit", () => {
     expect(extractToolPath("Read", { file_path: "/a/b.ts" })).toBe("/a/b.ts");
-    expect(extractToolPath("Write", { file_path: "/x.ts", content: "..." })).toBe("/x.ts");
-    expect(extractToolPath("Edit", { file_path: "/c.ts", old_string: "a", new_string: "b" })).toBe("/c.ts");
+    expect(
+      extractToolPath("Write", { file_path: "/x.ts", content: "..." }),
+    ).toBe("/x.ts");
+    expect(
+      extractToolPath("Edit", {
+        file_path: "/c.ts",
+        old_string: "a",
+        new_string: "b",
+      }),
+    ).toBe("/c.ts");
   });
 
   it("extracts notebook_path from NotebookEdit", () => {
-    expect(extractToolPath("NotebookEdit", { notebook_path: "/nb.ipynb" })).toBe("/nb.ipynb");
+    expect(
+      extractToolPath("NotebookEdit", { notebook_path: "/nb.ipynb" }),
+    ).toBe("/nb.ipynb");
   });
 
   it("extracts path from Glob/Grep/LS", () => {
-    expect(extractToolPath("Glob", { path: "/src", pattern: "*.ts" })).toBe("/src");
-    expect(extractToolPath("Grep", { path: "/src", pattern: "TODO" })).toBe("/src");
+    expect(extractToolPath("Glob", { path: "/src", pattern: "*.ts" })).toBe(
+      "/src",
+    );
+    expect(extractToolPath("Grep", { path: "/src", pattern: "TODO" })).toBe(
+      "/src",
+    );
     expect(extractToolPath("LS", { path: "/src" })).toBe("/src");
   });
 
@@ -87,7 +101,10 @@ describe("extractToolPath", () => {
 // evaluateGate
 // ---------------------------------------------------------------------------
 
-function makeInput(toolName: string, toolInput: Record<string, unknown> = {}): GateInput {
+function makeInput(
+  toolName: string,
+  toolInput: Record<string, unknown> = {},
+): GateInput {
   return {
     session_id: "test-session",
     cwd: "/test",
@@ -278,7 +295,9 @@ describe("budget state", () => {
   });
 
   it("resets stale state", () => {
-    const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+    const fiveHoursAgo = new Date(
+      Date.now() - 5 * 60 * 60 * 1000,
+    ).toISOString();
     const existing: BudgetState = {
       sessionId: "same-session",
       callsUsed: 50,

@@ -24,7 +24,10 @@ export async function createSignature(
   const signature = createHmac("sha256", secret)
     .update(hash, "utf8")
     .digest("hex");
-  const keyHint = createHash("sha1").update(secret, "utf8").digest("hex").slice(0, 12);
+  const keyHint = createHash("sha1")
+    .update(secret, "utf8")
+    .digest("hex")
+    .slice(0, 12);
 
   return {
     schema: "aex/signature@v1",

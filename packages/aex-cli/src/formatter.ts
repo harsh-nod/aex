@@ -29,7 +29,8 @@ export function formatTask(task: AEXTask): string {
   }
 
   if (task.use.length > 0) {
-    lines.push("", `use ${task.use.join(", ")}`);
+    const useKeyword = task.isPolicy ? "allow" : "use";
+    lines.push("", `${useKeyword} ${task.use.join(", ")}`);
   }
 
   if (task.deny.length > 0) {
@@ -45,8 +46,9 @@ export function formatTask(task: AEXTask): string {
   }
 
   if (task.budget && Object.keys(task.budget).length > 0) {
-    const budgetParts = Object.entries(task.budget)
-      .map(([key, value]) => `${key}=${value}`);
+    const budgetParts = Object.entries(task.budget).map(
+      ([key, value]) => `${key}=${value}`,
+    );
     lines.push("", `budget ${budgetParts.join(", ")}`);
   }
 
@@ -60,29 +62,34 @@ export function formatTask(task: AEXTask): string {
     if (step.kind === "make") {
       knownValues.add(step.bind);
     }
-  }
-  );
+  });
 
-  return lines.filter((line, index, array) => !(line === "" && array[index - 1] === "")).join("\n").replace(/^\n+/, "");
+  return lines
+    .filter((line, index, array) => !(line === "" && array[index - 1] === ""))
+    .join("\n")
+    .replace(/^\n+/, "");
 }
 
-function formatStep(step: AEXStep, knownValues: Set<string>, indent = 0): string[] {
+function formatStep(
+  step: AEXStep,
+  knownValues: Set<string>,
+  indent = 0,
+): string[] {
   const prefix = "  ".repeat(indent);
   switch (step.kind) {
     case "do": {
       const pairs = Object.entries(step.args)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(
-          ([key, value]) =>
-            `${key}=${formatArgValue(value, knownValues)}`,
-        );
+        .map(([key, value]) => `${key}=${formatArgValue(value, knownValues)}`);
       const suffix = step.bind ? ` -> ${step.bind}` : "";
       return [`${prefix}do ${step.tool}(${pairs.join(", ")})${suffix}`];
     }
     case "make": {
       const sources = step.inputs.join(", ");
       const header = `${prefix}make ${step.bind}: ${step.type} from ${sources} with:`;
-      const instructions = step.instructions.map((item) => `${prefix}  - ${item}`);
+      const instructions = step.instructions.map(
+        (item) => `${prefix}  - ${item}`,
+      );
       return [header, ...instructions];
     }
     case "check":

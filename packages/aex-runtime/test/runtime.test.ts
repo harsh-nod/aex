@@ -111,7 +111,9 @@ return outcome
     });
 
     expect(result.status).toBe("blocked");
-    expect(result.issues[0]).toContain('Tool "tests.fail" is not declared in use');
+    expect(result.issues[0]).toContain(
+      'Tool "tests.fail" is not declared in use',
+    );
   });
 
   it("requires confirmation when confirm step present", async () => {
@@ -162,7 +164,8 @@ return review
 
     const ok = await runTask(taskPath, {
       inputs: {
-        review_text: "Blocking issues:\n- Example\n\nSuggestions:\n- More tests",
+        review_text:
+          "Blocking issues:\n- Example\n\nSuggestions:\n- More tests",
       },
       tools: TOOLS,
     });
@@ -453,7 +456,9 @@ return {
     const repoDir = await fs.mkdtemp(path.join(tmpdir(), "aex-git-"));
     process.chdir(repoDir);
     await execFile("git", ["init"], { cwd: repoDir });
-    await execFile("git", ["config", "user.email", "ci@example.com"], { cwd: repoDir });
+    await execFile("git", ["config", "user.email", "ci@example.com"], {
+      cwd: repoDir,
+    });
     await execFile("git", ["config", "user.name", "CI Bot"], { cwd: repoDir });
     const filePath = path.join(repoDir, "sample.txt");
     await fs.writeFile(filePath, "original\n", "utf8");
@@ -817,11 +822,15 @@ describe("structured logger", () => {
 
     const otlp = logger.toOTLP();
     expect(otlp.resourceSpans).toHaveLength(1);
-    expect(otlp.resourceSpans[0].resource.attributes[0].value.stringValue).toBe("my-agent");
+    expect(otlp.resourceSpans[0].resource.attributes[0].value.stringValue).toBe(
+      "my-agent",
+    );
     const spans = otlp.resourceSpans[0].scopeSpans[0].spans;
     expect(spans).toHaveLength(2);
     expect(spans[0].name).toBe("run.started");
-    expect(spans[0].attributes.find((a) => a.key === "aex.event")?.value.stringValue).toBe("run.started");
+    expect(
+      spans[0].attributes.find((a) => a.key === "aex.event")?.value.stringValue,
+    ).toBe("run.started");
   });
 
   it("integrates with runTask logger option", async () => {
@@ -903,7 +912,10 @@ describe("input validation", () => {
   it("accepts valid inputs", () => {
     const issues = validateInputs(
       { test_cmd: "str", target_files: "list[file]" },
-      { test_cmd: "npm test", target_files: ["src/foo.ts", "tests/foo.test.ts"] },
+      {
+        test_cmd: "npm test",
+        target_files: ["src/foo.ts", "tests/foo.test.ts"],
+      },
     );
     expect(issues).toHaveLength(0);
   });
@@ -937,16 +949,24 @@ describe("input validation", () => {
     expect(validateInputs({ v: "bool" }, { v: "true" })).toHaveLength(1);
     expect(validateInputs({ v: "file" }, { v: "src/foo.ts" })).toHaveLength(0);
     expect(validateInputs({ v: "file" }, { v: "" })).toHaveLength(1);
-    expect(validateInputs({ v: "url" }, { v: "https://example.com" })).toHaveLength(0);
+    expect(
+      validateInputs({ v: "url" }, { v: "https://example.com" }),
+    ).toHaveLength(0);
     expect(validateInputs({ v: "url" }, { v: "not-a-url" })).toHaveLength(1);
-    expect(validateInputs({ v: "json" }, { v: { any: "thing" } })).toHaveLength(0);
+    expect(validateInputs({ v: "json" }, { v: { any: "thing" } })).toHaveLength(
+      0,
+    );
     expect(validateInputs({ v: "json" }, { v: "also fine" })).toHaveLength(0);
   });
 
   it("validates list element types", () => {
-    expect(validateInputs({ v: "list[str]" }, { v: ["a", "b"] })).toHaveLength(0);
+    expect(validateInputs({ v: "list[str]" }, { v: ["a", "b"] })).toHaveLength(
+      0,
+    );
     expect(validateInputs({ v: "list[str]" }, { v: ["a", 1] })).toHaveLength(1);
-    expect(validateInputs({ v: "list[int]" }, { v: [1, 2, 3] })).toHaveLength(0);
+    expect(validateInputs({ v: "list[int]" }, { v: [1, 2, 3] })).toHaveLength(
+      0,
+    );
     expect(validateInputs({ v: "list[int]" }, { v: [1, 2.5] })).toHaveLength(1);
   });
 
@@ -1112,7 +1132,12 @@ budget calls=100
     expect(parsed.task.isPolicy).toBe(true);
     expect(parsed.task.agent?.name).toBe("workspace");
     expect(parsed.task.agent?.version).toBe("0");
-    expect(parsed.task.use).toEqual(["file.read", "file.write", "tests.run", "git.*"]);
+    expect(parsed.task.use).toEqual([
+      "file.read",
+      "file.write",
+      "tests.run",
+      "git.*",
+    ]);
     expect(parsed.task.deny).toEqual(["network.*", "secrets.read"]);
     expect(parsed.task.goal).toBe("Default security boundary.");
     expect(parsed.task.budget).toEqual({ calls: 100 });
@@ -1251,24 +1276,52 @@ describe("mergePolicyAndTask", () => {
   });
 
   it("takes min budget", () => {
-    const policy: PolicyLayer = { use: ["*"], deny: [], confirm: [], budget: 100 };
-    const task: PolicyLayer = { use: ["file.read"], deny: [], confirm: [], budget: 20 };
+    const policy: PolicyLayer = {
+      use: ["*"],
+      deny: [],
+      confirm: [],
+      budget: 100,
+    };
+    const task: PolicyLayer = {
+      use: ["file.read"],
+      deny: [],
+      confirm: [],
+      budget: 20,
+    };
     expect(mergePolicyAndTask(policy, task).budget).toBe(20);
   });
 
   it("uses available budget when only one side has it", () => {
-    const policy: PolicyLayer = { use: ["*"], deny: [], confirm: [], budget: 50 };
+    const policy: PolicyLayer = {
+      use: ["*"],
+      deny: [],
+      confirm: [],
+      budget: 50,
+    };
     const task: PolicyLayer = { use: ["file.read"], deny: [], confirm: [] };
     expect(mergePolicyAndTask(policy, task).budget).toBe(50);
 
     const policy2: PolicyLayer = { use: ["*"], deny: [], confirm: [] };
-    const task2: PolicyLayer = { use: ["file.read"], deny: [], confirm: [], budget: 30 };
+    const task2: PolicyLayer = {
+      use: ["file.read"],
+      deny: [],
+      confirm: [],
+      budget: 30,
+    };
     expect(mergePolicyAndTask(policy2, task2).budget).toBe(30);
   });
 
   it("deduplicates deny and confirm entries", () => {
-    const policy: PolicyLayer = { use: ["*"], deny: ["network.*"], confirm: ["file.write"] };
-    const task: PolicyLayer = { use: ["file.read"], deny: ["network.*"], confirm: ["file.write"] };
+    const policy: PolicyLayer = {
+      use: ["*"],
+      deny: ["network.*"],
+      confirm: ["file.write"],
+    };
+    const task: PolicyLayer = {
+      use: ["file.read"],
+      deny: ["network.*"],
+      confirm: ["file.write"],
+    };
     const result = mergePolicyAndTask(policy, task);
     expect(result.deny.filter((d) => d === "network.*")).toHaveLength(1);
     expect(result.confirm.filter((c) => c === "file.write")).toHaveLength(1);
@@ -1358,8 +1411,16 @@ describe("discoverPolicy", () => {
     const dir = await fs.mkdtemp(path.join(tmpdir(), "aex-discover-"));
     const aexDir = path.join(dir, ".aex");
     await fs.mkdir(aexDir);
-    await fs.writeFile(path.join(aexDir, "policy.aex"), "policy a v0\ngoal \"A\"\nuse *", "utf8");
-    await fs.writeFile(path.join(dir, "aex.policy.aex"), "policy b v0\ngoal \"B\"\nuse *", "utf8");
+    await fs.writeFile(
+      path.join(aexDir, "policy.aex"),
+      'policy a v0\ngoal "A"\nuse *',
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(dir, "aex.policy.aex"),
+      'policy b v0\ngoal "B"\nuse *',
+      "utf8",
+    );
     const result = await discoverPolicy(dir);
     expect(result).toBe(path.join(aexDir, "policy.aex"));
   });

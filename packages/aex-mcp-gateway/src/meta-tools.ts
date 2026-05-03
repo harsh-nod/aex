@@ -56,8 +56,7 @@ export const META_TOOL_DEFINITIONS = [
   },
   {
     name: "aex.resume",
-    description:
-      "Load a previously saved checkpoint and restore session state",
+    description: "Load a previously saved checkpoint and restore session state",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -78,7 +77,7 @@ export const META_TOOL_DEFINITIONS = [
     },
   },
   {
-    name: "aex.run_task",
+    name: "aex.review_task",
     description:
       "Review an AEX task contract and return its permissions summary without executing",
     inputSchema: {
@@ -111,12 +110,15 @@ export async function handleMetaTool(
 ): Promise<unknown> {
   switch (toolName) {
     case "aex.checkpoint":
-      return handleCheckpoint(params as { name: string; description?: string }, ctx);
+      return handleCheckpoint(
+        params as { name: string; description?: string },
+        ctx,
+      );
     case "aex.resume":
       return handleResume(params as { name: string }, ctx);
     case "aex.list_tasks":
       return handleListTasks(ctx);
-    case "aex.run_task":
+    case "aex.review_task":
       return handleRunTask(params as { task: string }, ctx);
     default:
       throw new Error(`Unknown meta-tool: ${toolName}`);
@@ -153,9 +155,7 @@ async function handleCheckpoint(
     "utf8",
   );
 
-  const auditLines = ctx.auditEvents
-    .map((ev) => JSON.stringify(ev))
-    .join("\n");
+  const auditLines = ctx.auditEvents.map((ev) => JSON.stringify(ev)).join("\n");
   await fs.writeFile(
     path.join(dir, "audit.jsonl"),
     auditLines ? auditLines + "\n" : "",
@@ -179,9 +179,7 @@ async function handleResume(
 }> {
   const { name } = params;
   if (!name || !VALID_NAME.test(name)) {
-    throw new Error(
-      `Invalid checkpoint name "${name}".`,
-    );
+    throw new Error(`Invalid checkpoint name "${name}".`);
   }
 
   const dir = path.join(ctx.cwd, ".aex", "checkpoints", name);
@@ -227,9 +225,7 @@ async function handleResume(
   };
 }
 
-async function handleListTasks(
-  ctx: MetaToolContext,
-): Promise<{
+async function handleListTasks(ctx: MetaToolContext): Promise<{
   tasks: Array<{
     name: string;
     path: string;
@@ -379,7 +375,9 @@ async function handleRunTask(
   const warnings: string[] = [];
   for (const tool of task.use) {
     if (!effective.allow.includes(tool)) {
-      warnings.push(`Tool "${tool}" requested by task is not allowed by policy`);
+      warnings.push(
+        `Tool "${tool}" requested by task is not allowed by policy`,
+      );
     }
   }
 

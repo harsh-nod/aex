@@ -130,8 +130,7 @@ export function resolvebudgetState(
     return { sessionId, callsUsed: 0, lastUpdated: new Date().toISOString() };
   }
   // Stale detection
-  const elapsed =
-    Date.now() - new Date(existing.lastUpdated).getTime();
+  const elapsed = Date.now() - new Date(existing.lastUpdated).getTime();
   if (elapsed > STALE_HOURS * 60 * 60 * 1000) {
     return { sessionId, callsUsed: 0, lastUpdated: new Date().toISOString() };
   }

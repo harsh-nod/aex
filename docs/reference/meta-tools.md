@@ -110,7 +110,7 @@ List available task contracts and checkpoints in the repository.
 }
 ```
 
-## `aex.run_task`
+## `aex.review_task`
 
 Parse and review a task contract, returning a permissions summary without executing it. This lets the LLM understand what a contract will do and whether it runs under the current policy.
 
@@ -240,7 +240,7 @@ User: "What tasks are available?"
 Claude: calls aex.list_tasks()
   → gets list of tasks, runs, and checkpoints
 
-Claude: calls aex.run_task({ task: "tasks/fix-test.aex" })
+Claude: calls aex.review_task({ task: "tasks/fix-test.aex" })
   → gets permissions summary, checks, make steps
 
 Claude: "The fix-test contract allows file.read, file.write, and tests.run.

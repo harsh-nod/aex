@@ -9,6 +9,7 @@ need pr_diff: file
 need changed_files: list[file]
 
 do git.diff(path=pr_diff) -> diff
+
 do file.read(paths=changed_files) -> sources
 
 make review: markdown from diff, sources with:
@@ -18,6 +19,7 @@ make review: markdown from diff, sources with:
   - stay focused on changes in this PR
 
 check review has "Blocking issues"
+
 check review has "Suggestions"
 
 return review

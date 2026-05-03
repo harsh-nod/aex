@@ -55,6 +55,23 @@ return { status: \"done\", files: write_result.written }"
 `);
   });
 
+  it("uses allow keyword for policy files", () => {
+    const source = `policy workspace v0
+
+goal "Security boundary."
+
+allow file.read, file.write
+deny network.*
+
+budget calls=50
+`;
+
+    const parsed = parseAEX(source, { tolerant: true });
+    const formatted = formatTask(parsed.task);
+    expect(formatted).toContain("allow file.read, file.write");
+    expect(formatted).not.toContain("use file.read");
+  });
+
   it("preserves budget declarations", () => {
     const source = `task budgeted v0
 

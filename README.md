@@ -1,6 +1,6 @@
 # AEX
 
-> **Executable contracts for AI agents.** Prompts are not permissions.
+> **Executable contracts for AI agents.** Prompts are not permissions. Plans are not contracts.
 
 AEX is a tiny, readable contract format that constrains what an AI agent may do, what it must check, and what requires human approval. Install the CLI, add `.aex` files to your repo, and your existing agent stack gains an enforceable contract layer.
 
@@ -110,6 +110,10 @@ aex run tasks/fix-test.aex --inputs inputs.json --auto-confirm
 
 # Enforce MCP tools via proxy
 aex proxy -- npx -y your-mcp-server
+
+# Or: generate a contract from a prompt
+aex draft "fix the failing test in src/foo.ts" --model anthropic
+aex review .aex/runs/20260502-fix-failing-test.aex --run
 ```
 
 The runtime enforces the intersection of policy and task permissions:

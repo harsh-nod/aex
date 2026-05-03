@@ -109,7 +109,7 @@ export default defineConfig({
       { icon: "github", link: "https://github.com/harsh-nod/aex" }
     ],
     footer: {
-      message: "Enforce first, execute second.",
+      message: "Prompts are not permissions. Plans are not contracts.",
       copyright: "© " + new Date().getFullYear() + " AEX contributors."
     }
   },

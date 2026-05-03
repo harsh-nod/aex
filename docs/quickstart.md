@@ -1,6 +1,6 @@
 # Quickstart
 
-The goal: run your first AEX contract in under five minutes.
+Run your first AEX contract in under five minutes.
 
 ## Install
 
@@ -13,8 +13,6 @@ Or run without installing:
 ```bash
 npx @aex-lang/cli check tasks/fix-test.aex
 ```
-
-After a global install, the `aex` command is available on your PATH.
 
 ## Create a Policy
 
@@ -31,7 +29,7 @@ policy workspace v0
 
 goal "Default security boundary for this repository."
 
-use file.read, file.write, tests.run, git.*
+allow file.read, file.write, tests.run, git.*
 deny network.*, secrets.read
 
 confirm before file.write
@@ -41,12 +39,34 @@ budget calls=100
 
 Edit it to match your repo's needs. Policies define what tools are available, which are denied, and which require human approval.
 
-## Create a Task
+## Draft a Contract from a Prompt
 
-Create `tasks/fix-test.aex`:
+The fastest way to create a task contract:
+
+```bash
+aex draft "fix the failing test in src/foo.ts" --model anthropic
+```
+
+This generates a validated contract in `.aex/runs/`. Review it:
+
+```bash
+aex review .aex/runs/20260502-fix-failing-test.aex
+```
+
+Approve and execute:
+
+```bash
+aex review .aex/runs/20260502-fix-failing-test.aex --run
+```
+
+The model drafts. You review. AEX executes with full enforcement.
+
+## Write a Contract by Hand
+
+For reusable workflows, write contracts directly. Create `tasks/fix-test.aex`:
 
 ```aex
-agent fix_test v0
+task fix_test v0
 
 goal "Fix the failing test with the smallest safe change."
 
@@ -238,3 +258,4 @@ aex verify tasks/fix-test.aex \
 ```
 
 The signature file records the hash, signer, and timestamp, giving security teams an audit trail for every contract revision.
+

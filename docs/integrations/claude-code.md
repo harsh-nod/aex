@@ -153,6 +153,44 @@ aex effective
 aex effective --contract tasks/fix-test.aex
 ```
 
+## Contract Mode
+
+For tasks that modify code, use AEX's draft → review → run workflow instead of letting Claude freestyle:
+
+### Pattern 1: Draft with `aex draft`
+
+```bash
+aex draft "fix the failing test in src/foo.ts" --model anthropic
+aex review .aex/runs/20260502-fix-test.aex --run
+```
+
+Claude generates a constrained AEX task contract. You review the contract — tool permissions, checks, confirmations — then AEX executes it with full enforcement.
+
+### Pattern 2: Claude drafts, AEX runs
+
+Ask Claude to write an AEX contract directly:
+
+```
+> Draft an AEX task contract that fixes the failing test in src/foo.ts
+```
+
+Save Claude's output to `.aex/runs/fix-test.aex`, then:
+
+```bash
+aex check .aex/runs/fix-test.aex
+aex review .aex/runs/fix-test.aex --run
+```
+
+### When to use which mode
+
+| Situation | Mode |
+|-----------|------|
+| Exploring code, reading files | Exploratory — policy via gate/proxy |
+| Fixing bugs, writing code | Contract — `aex draft` + `aex review --run` |
+| Deploying, migrating | Contract with strict approvals |
+
+**Key principle:** The model drafts. The human reviews. AEX executes. Claude does not freestyle edits in contract mode.
+
 ## Pairing with CLAUDE.md
 
 | Aspect | CLAUDE.md | AEX Policy |

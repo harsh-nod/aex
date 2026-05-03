@@ -43,6 +43,7 @@ AEX is designed to mitigate:
 - path traversal attacks through user-controlled file paths
 - command injection through crafted test commands
 - permission escalation when a task contract requests broader access than the ambient policy allows (merge semantics enforce the intersection)
+- generated contracts that bypass policy (`aex draft` validates against policy; `aex review` shows effective permissions before execution)
 
 What AEX does **not** guarantee:
 

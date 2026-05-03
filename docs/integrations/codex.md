@@ -104,6 +104,30 @@ aex proxy 2>audit.json -- npx -y your-mcp-server
 
 For `aex run`, pass `--log-json` or `--otlp-endpoint` for structured logs with OpenTelemetry-compatible trace IDs.
 
+## Contract Mode
+
+For tasks that modify code, use the draft → review → run workflow:
+
+```bash
+# Generate a contract from a prompt
+aex draft "fix the failing test in src/foo.ts" --model openai
+
+# Review it
+aex review .aex/runs/20260502-fix-test.aex
+
+# Approve and execute
+aex review .aex/runs/20260502-fix-test.aex --run --model openai
+```
+
+Or ask Codex to write the contract directly, then validate and run:
+
+```bash
+aex check .aex/runs/fix-test.aex
+aex review .aex/runs/fix-test.aex --run
+```
+
+The runtime enforces tool permissions, checks, confirmations, and budgets. The model generates artifacts inside bounded `make` steps — it cannot directly write files or call tools outside the contract.
+
 ## See Also
 
 - [Language Overview](/language/overview) — AEX policy and task syntax

@@ -2,13 +2,13 @@
 
 AEX v0 is intentionally tiny. Master these concepts and you can read any contract.
 
-## Agent Header
+## Task Header
 
 ```aex
-agent fix_test v0
+task fix_test v0
 ```
 
-Names the contract and declares the spec version it targets.
+Names the contract and declares the spec version. The `task` keyword is preferred; `agent` is accepted as an alias for backwards compatibility.
 
 ## Goal
 
@@ -26,6 +26,8 @@ deny network.*, secrets.read
 ```
 
 `use` grants requested capabilities. `deny` explicitly blocks capabilities. Runtime policy will intersect with these declarations.
+
+In policy files, `allow` is used instead of `use` — see [Policy Files](#policy-files).
 
 ## Inputs
 
@@ -129,16 +131,31 @@ return {
 
 The runtime serializes this structure into JSON for downstream consumers.
 
+## Generating Contracts
+
+Instead of writing contracts by hand, generate them from natural language:
+
+```bash
+aex draft "fix the failing test in src/foo.ts" --model anthropic
+```
+
+The draft command calls an LLM to produce a valid AEX task contract, validates it against the active policy, and saves it to `.aex/runs/`. Review before executing:
+
+```bash
+aex review .aex/runs/fix-test.aex
+aex review .aex/runs/fix-test.aex --run
+```
+
 ## Policy Files
 
-AEX also supports **policy files** — ambient authority boundaries that apply across an entire session rather than a single task. Policy files use the `policy` keyword instead of `agent` and define `use`/`deny`/`confirm`/`budget` constraints without any execution steps.
+AEX also supports **policy files** — ambient authority boundaries that apply across an entire session rather than a single task. Policy files use the `policy` keyword instead of `task` and define `allow`/`deny`/`confirm`/`budget` constraints without any execution steps.
 
 ```aex
 policy workspace v0
 
 goal "Default security boundary for this repository."
 
-use file.read, file.write, tests.run, git.*
+allow file.read, file.write, tests.run, git.*
 deny network.*, secrets.read
 
 confirm before file.write
@@ -150,9 +167,9 @@ budget calls=100
 
 | | Policy | Task |
 |---|---|---|
-| Header | `policy name v0` | `agent name v0` |
+| Header | `policy name v0` | `task name v0` |
 | Purpose | Ambient guardrails for a session | Specific task execution |
-| Allowed keywords | `use`, `deny`, `confirm before`, `budget`, `goal` | All keywords |
+| Allowed keywords | `allow`, `deny`, `confirm before`, `budget`, `goal` | All keywords |
 | Forbidden keywords | `need`, `do`, `make`, `check`, `return`, `if`, `for` | None |
 
 ### Merge Semantics
@@ -170,9 +187,12 @@ When a policy and task contract are both active, the effective permissions are t
 repo/
   .aex/
     policy.aex          # ambient authority boundary
+    runs/               # generated one-off contracts
+      fix-test.aex
+      fix-test.audit.jsonl
   tasks/
-    fix-test.aex        # task contract
+    fix-test.aex        # reusable checked-in task contracts
     review-pr.aex
 ```
 
-The CLI auto-discovers `.aex/policy.aex` or `aex.policy.aex` in the current directory. Use `aex init --policy` to scaffold one.
+The CLI auto-discovers `.aex/policy.aex` in the current directory. `tasks/` holds reusable contracts checked into the repo. `.aex/runs/` holds generated one-off contracts from `aex draft`. Use `aex init --policy` to scaffold a policy.

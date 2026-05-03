@@ -228,6 +228,96 @@ Claude Code `PreToolUse` hook that evaluates every tool call against your AEX po
 | WebSearch | network.search |
 | Agent | agent.spawn |
 
+## `aex draft`
+
+Generate a draft AEX task contract from a natural language prompt.
+
+```bash
+aex draft "<prompt>" [options]
+```
+
+The command calls an LLM to produce a valid AEX contract, validates it, and saves it to `.aex/runs/`.
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--model <provider>` | Model provider (`openai`, `anthropic`, or `provider:model` like `openai:gpt-4o`) |
+| `--out <file>` | Output file path (defaults to `.aex/runs/<timestamp>-<name>.aex`) |
+| `--name <name>` | Task name in snake_case (derived from prompt if omitted) |
+| `--policy <file>` | Policy file to constrain against (auto-discovers `.aex/policy.aex`) |
+| `--from-plan <file>` | Read plan text from file instead of prompt |
+| `--max-retries <n>` | Max retries on validation failure (default: 1) |
+
+### Examples
+
+```bash
+# Generate a contract using Anthropic
+aex draft "fix the failing test in src/foo.ts" --model anthropic
+
+# Specify output path and name
+aex draft "review this PR" --model openai --name review_pr --out tasks/review.aex
+
+# Use a specific model version
+aex draft "update dependency" --model openai:gpt-4o
+```
+
+The drafted contract is validated against the active policy. If validation fails, the LLM is retried with error feedback.
+
+## `aex review`
+
+Review an AEX task contract and optionally execute it.
+
+```bash
+aex review <file> [options]
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output machine-readable JSON summary |
+| `--run` | Prompt for approval then execute the task |
+| `--yes` | Skip approval prompt (with `--run`) |
+| `--policy <file>` | Policy file (auto-discovers if omitted) |
+| `--model <provider>` | Model provider for `make` steps (with `--run`) |
+| `--model-handler <path>` | Custom model handler (with `--run`) |
+| `--inputs <file>` | Inputs JSON file (with `--run`) |
+| `--auto-confirm` | Auto-approve confirmation gates during execution |
+
+### Output
+
+The review shows: task name, goal, requested tools, denied tools, effective permissions, checks, model-generated steps, and whether the task runs under current policy.
+
+### Examples
+
+```bash
+# Review a drafted contract
+aex review .aex/runs/20260502-153012-fix-test.aex
+
+# Review and run with approval
+aex review .aex/runs/fix-test.aex --run
+
+# Machine-readable output
+aex review tasks/fix-test.aex --json
+```
+
+## `aex classify`
+
+Classify a prompt as exploratory or contract-requiring.
+
+```bash
+aex classify "<prompt>"
+```
+
+### Output
+
+```json
+{ "mode": "contract_recommended", "reason": "prompt implies file modifications" }
+```
+
+Modes: `exploratory`, `contract_recommended`, `contract_required`. Uses keyword heuristics, no LLM call.
+
 ## `aex sign` and `aex verify`
 
 Generate and validate provenance metadata using an HMAC secret.

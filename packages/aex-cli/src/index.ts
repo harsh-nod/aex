@@ -35,6 +35,8 @@ import {
   SignatureMetadata,
 } from "./signing.js";
 import { resolveModelHandler } from "./models/index.js";
+import { draftContract } from "./draft.js";
+import { buildReviewSummary, formatReviewText, executeAfterApproval } from "./review.js";
 
 const useColor =
   process.env.NO_COLOR === undefined &&
@@ -410,7 +412,7 @@ program
 program
   .command("run")
   .argument("<file>", "AEX file to execute")
-  .option("--policy <policy>", "Path to a runtime policy JSON file")
+  .option("--policy <policy>", "Path to a runtime policy JSON or .aex file (auto-discovers .aex/policy.aex if omitted)")
   .option("--inputs <inputs>", "Path to an inputs JSON file")
   .option(
     "--auto-confirm",
@@ -437,15 +439,31 @@ program
       },
     ) => {
       try {
+        const resolvedFile = resolveInput(file);
         const inputs = options.inputs
           ? await loadInputs(resolveInput(options.inputs))
           : undefined;
-        let policy = options.policy
-          ? await loadPolicy(resolveInput(options.policy))
-          : undefined;
+
+        // Policy resolution: explicit flag, auto-discover .aex, or none
+        let policy: RuntimePolicy | undefined;
+        if (options.policy) {
+          const policyFile = resolveInput(options.policy);
+          if (policyFile.endsWith(".aex")) {
+            policy = await loadAEXPolicy(policyFile);
+          } else {
+            policy = await loadPolicy(policyFile);
+          }
+        } else {
+          // Auto-discover .aex/policy.aex
+          const discovered = await discoverPolicy();
+          if (discovered) {
+            policy = await loadAEXPolicy(discovered);
+          }
+        }
         if (policy) {
           policy = await resolvePolicy(policy);
         }
+
         const confirmHandler = options.autoConfirm
           ? alwaysApproveConfirmation
           : createPromptConfirmHandler();
@@ -457,11 +475,17 @@ program
           ? { url: options.registry }
           : undefined;
         const structuredLog = createStructuredLogger();
+        const auditEvents: Array<{ event: string; data?: Record<string, unknown> }> = [];
         const logFn = options.logJson
-          ? (event: { event: string; data?: Record<string, unknown> }) =>
-              structuredLog.log(event)
-          : logEvent;
-        const result = await runTask(resolveInput(file), {
+          ? (event: { event: string; data?: Record<string, unknown> }) => {
+              structuredLog.log(event);
+              auditEvents.push(event);
+            }
+          : (event: { event: string; data?: Record<string, unknown> }) => {
+              logEvent(event);
+              auditEvents.push(event);
+            };
+        const result = await runTask(resolvedFile, {
           policy,
           inputs,
           model: modelHandler,
@@ -478,6 +502,19 @@ program
             `${c.green("✔")} Traces exported to ${options.otlpEndpoint}\n`,
           );
         }
+
+        // Write audit log for .aex/runs/ tasks
+        if (resolvedFile.includes(path.join(".aex", "runs"))) {
+          const auditPath = resolvedFile.replace(/\.aex$/, ".audit.jsonl");
+          const auditContent = auditEvents
+            .map((e) => JSON.stringify({ ...e, timestamp: new Date().toISOString() }))
+            .join("\n") + "\n";
+          await fs.writeFile(auditPath, auditContent, "utf8");
+          process.stdout.write(
+            `${c.cyan("audit")} Log written to ${path.relative(process.cwd(), auditPath)}\n`,
+          );
+        }
+
         if (result.status === "blocked") {
           process.stderr.write(
             `${c.yellow("runtime blocked")}: ${result.issues.join(
@@ -693,6 +730,206 @@ program
     },
   );
 
+program
+  .command("draft")
+  .argument("<prompt>", "Natural language description of the task")
+  .option("--model <provider>", "Model provider (openai, anthropic, or provider:model)")
+  .option("--out <file>", "Output file path (defaults to .aex/runs/<timestamp>-<name>.aex)")
+  .option("--name <name>", "Task name in snake_case")
+  .option("--policy <file>", "Policy file to constrain against (auto-discovers if omitted)")
+  .option("--from-plan <file>", "Read plan text from file instead of prompt")
+  .option("--max-retries <n>", "Max retries on validation failure", "1")
+  .description("Generate a draft AEX task contract from a natural language prompt")
+  .action(
+    async (
+      prompt: string,
+      options: {
+        model?: string;
+        out?: string;
+        name?: string;
+        policy?: string;
+        fromPlan?: string;
+        maxRetries?: string;
+      },
+    ) => {
+      try {
+        const result = await draftContract({
+          prompt,
+          model: options.model,
+          out: options.out,
+          name: options.name,
+          policyPath: options.policy,
+          fromPlan: options.fromPlan,
+          maxRetries: options.maxRetries ? parseInt(options.maxRetries, 10) : 1,
+        });
+
+        const relPath = path.relative(process.cwd(), result.outputPath);
+
+        if (result.valid) {
+          process.stdout.write(
+            `${c.green("✔")} Draft saved to ${relPath}\n`,
+          );
+        } else {
+          process.stdout.write(
+            `${c.yellow("⚠")} Draft saved to ${relPath} (has validation issues)\n`,
+          );
+          for (const d of result.diagnostics) {
+            process.stderr.write(`${c.red("error")} ${d}\n`);
+          }
+          process.exitCode = 1;
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
+
+program
+  .command("review")
+  .argument("<file>", "AEX task file to review")
+  .option("--json", "Output machine-readable JSON summary")
+  .option("--run", "Prompt for approval then execute the task")
+  .option("--yes", "Skip approval prompt (with --run)")
+  .option("--policy <file>", "Policy file (auto-discovers if omitted)")
+  .option("--model <provider>", "Model provider for make steps (with --run)")
+  .option("--model-handler <path>", "Custom model handler (with --run)")
+  .option("--inputs <file>", "Inputs JSON file (with --run)")
+  .option("--auto-confirm", "Auto-approve confirmation gates during execution")
+  .description("Review an AEX task contract and optionally execute it")
+  .action(
+    async (
+      file: string,
+      options: {
+        json?: boolean;
+        run?: boolean;
+        yes?: boolean;
+        policy?: string;
+        model?: string;
+        modelHandler?: string;
+        inputs?: string;
+        autoConfirm?: boolean;
+      },
+    ) => {
+      try {
+        const resolved = resolveInput(file);
+        const summary = await buildReviewSummary(resolved, options.policy);
+
+        if (options.json) {
+          process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
+        } else {
+          process.stdout.write(formatReviewText(summary, useColor) + "\n");
+        }
+
+        if (options.run) {
+          if (!summary.valid) {
+            process.stderr.write(
+              `${c.red("error")} Cannot run: task has validation errors.\n`,
+            );
+            process.exitCode = 1;
+            return;
+          }
+
+          if (!summary.runsUnderPolicy) {
+            process.stderr.write(
+              `${c.red("error")} Cannot run: task exceeds current policy.\n`,
+            );
+            process.exitCode = 1;
+            return;
+          }
+
+          // Prompt for approval unless --yes
+          if (!options.yes) {
+            if (process.stdin.isTTY && process.stdout.isTTY) {
+              const rl = createInterface({
+                input: process.stdin,
+                output: process.stdout,
+              });
+              try {
+                const answer = await rl.question(
+                  `\n${c.yellow("Approve and run?")} [y/N]: `,
+                );
+                if (!answer.trim().toLowerCase().startsWith("y")) {
+                  process.stdout.write("Cancelled.\n");
+                  return;
+                }
+              } finally {
+                rl.close();
+              }
+            } else {
+              process.stderr.write(
+                `${c.red("error")} Non-interactive terminal. Use --yes to skip approval.\n`,
+              );
+              process.exitCode = 1;
+              return;
+            }
+          }
+
+          process.stdout.write(`\n${c.cyan("Executing...")} ${file}\n`);
+          const result = await executeAfterApproval(resolved, options);
+
+          if (result.status === "blocked") {
+            process.stderr.write(
+              `${c.yellow("runtime blocked")}\n`,
+            );
+            process.exitCode = 1;
+          } else {
+            process.stdout.write(`${c.green("runtime success")}\n`);
+            if (result.output !== undefined) {
+              process.stdout.write(
+                JSON.stringify(result.output, null, 2) + "\n",
+              );
+            }
+          }
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
+
+program
+  .command("classify")
+  .argument("<prompt>", "Natural language prompt to classify")
+  .description("Classify a prompt as exploratory, contract_recommended, or contract_required")
+  .action((prompt: string) => {
+    const lower = prompt.toLowerCase();
+
+    const exploratoryWords = [
+      "explain", "summarize", "find", "inspect", "understand", "search",
+      "describe", "what", "where", "how", "why", "show", "list", "read",
+      "look", "check", "tell", "help",
+    ];
+    const contractRequiredWords = [
+      "deploy", "production", "payment", "send", "email", "admin",
+      "secrets", "migration", "publish", "release",
+    ];
+    const contractRecommendedWords = [
+      "fix", "update", "modify", "edit", "write", "delete", "create",
+      "add", "remove", "refactor", "change", "rename", "move", "install",
+      "upgrade", "patch", "migrate",
+    ];
+
+    let mode = "contract_recommended";
+    let reason = "default classification for ambiguous prompts";
+
+    const words = lower.split(/\s+/);
+
+    if (contractRequiredWords.some((w) => words.includes(w))) {
+      mode = "contract_required";
+      reason = "prompt implies high-risk side effects";
+    } else if (contractRecommendedWords.some((w) => words.includes(w))) {
+      mode = "contract_recommended";
+      reason = "prompt implies file modifications or code changes";
+    } else if (exploratoryWords.some((w) => words.includes(w))) {
+      mode = "exploratory";
+      reason = "prompt implies read-only exploration, no side effects required";
+    }
+
+    process.stdout.write(
+      JSON.stringify({ mode, reason }, null, 2) + "\n",
+    );
+  });
+
 void program.parseAsync(process.argv);
 
 function resolveInput(inputPath: string): string {
@@ -804,6 +1041,17 @@ function validatePolicyData(data: unknown): string[] {
     }
   }
   return issues;
+}
+
+async function loadAEXPolicy(filePath: string): Promise<RuntimePolicy> {
+  const parsed = await parseFile(filePath, { tolerant: true });
+  const layer = extractPolicyLayer(parsed.task);
+  return {
+    allow: layer.use,
+    deny: layer.deny,
+    require_confirmation: layer.confirm,
+    budget: layer.budget !== undefined ? { calls: layer.budget } : undefined,
+  };
 }
 
 async function loadPolicy(filePath: string): Promise<RuntimePolicy> {

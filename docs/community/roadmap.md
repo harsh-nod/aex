@@ -65,6 +65,15 @@
     - [x] Budget state persistence across hook invocations
     - [x] `allow` keyword for policy files, `AEX120`/`AEX121` diagnostics
     - [x] `task` keyword as alternative to `agent`
+14. **Draft → Review → Run workflow**
+    - [x] `aex draft` generates task contracts from natural language prompts
+    - [x] `aex review` shows human-readable contract summary with effective permissions
+    - [x] `aex review --run` prompts for approval then executes through runtime
+    - [x] `aex classify` classifies prompts as exploratory/contract_recommended/contract_required
+    - [x] `.aex/runs/` directory for generated one-off contracts
+    - [x] Audit log output (`.audit.jsonl`) for executed contracts
+    - [x] `aex run` auto-discovers `.aex/policy.aex` and supports `.aex` policy files
+    - [x] LLM-powered contract generation with validation loop and retry
 
 ## Up Next
 

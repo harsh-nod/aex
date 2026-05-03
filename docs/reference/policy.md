@@ -11,7 +11,7 @@ policy workspace v0
 
 goal "Default security boundary for this repository."
 
-use file.read, file.write, tests.run, git.*
+allow file.read, file.write, tests.run, git.*
 deny network.*, secrets.read
 
 confirm before file.write
@@ -25,9 +25,9 @@ Policy files use the same keywords as task contracts, with these differences:
 
 | Keyword | Meaning in policy |
 |---------|-------------------|
-| `policy <name> <version>` | Header (replaces `agent`) |
+| `policy <name> <version>` | Header (replaces `task`/`agent`) |
 | `goal` | Human-readable description of the boundary |
-| `use` | Tools available to any task running under this policy |
+| `allow` | Tools available to any task running under this policy (use `allow` in policies, `use` in tasks) |
 | `deny` | Tools blocked regardless of what a task requests |
 | `confirm before` | Tools requiring human approval |
 | `budget calls=N` | Maximum tool invocations per session |
@@ -40,13 +40,15 @@ Policy files must **not** contain `need`, `do`, `make`, `check`, or `return` —
 repo/
   .aex/
     policy.aex          # ambient authority boundary (auto-discovered)
-    local.policy.aex    # local overrides (gitignored)
+    runs/               # generated one-off contracts
+      fix-test.aex
+      fix-test.audit.jsonl
   tasks/
-    fix-test.aex        # task contract
+    fix-test.aex        # reusable checked-in task contracts
     review-pr.aex
 ```
 
-The CLI auto-discovers `.aex/policy.aex` or `aex.policy.aex` in the working directory.
+The CLI auto-discovers `.aex/policy.aex` in the working directory. `tasks/` holds reusable contracts checked into the repo. `.aex/runs/` holds generated one-off contracts from `aex draft` along with their audit logs.
 
 ## Merge Semantics
 

@@ -238,7 +238,14 @@ export async function draftContract(
     const planPath = path.isAbsolute(options.fromPlan)
       ? options.fromPlan
       : path.resolve(process.cwd(), options.fromPlan);
-    userPrompt = await fs.readFile(planPath, "utf8");
+    try {
+      userPrompt = await fs.readFile(planPath, "utf8");
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+        throw new Error(`Plan file not found: ${planPath}`);
+      }
+      throw err;
+    }
   } else {
     userPrompt = options.prompt;
   }
@@ -304,6 +311,12 @@ export async function draftContract(
       valid = true;
       break;
     }
+  }
+
+  if (!contract.trim()) {
+    throw new Error(
+      "Model returned empty contract. Check model configuration and API key.",
+    );
   }
 
   // Determine output path

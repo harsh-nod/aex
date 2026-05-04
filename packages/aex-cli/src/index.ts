@@ -34,7 +34,10 @@ import {
   verifySignature,
   SignatureMetadata,
 } from "./signing.js";
-import { resolveModelHandler } from "./models/index.js";
+import {
+  resolveModelHandler,
+  checkApiKeyAvailable,
+} from "./models/index.js";
 import { draftContract } from "./draft.js";
 import {
   buildReviewSummary,
@@ -496,6 +499,38 @@ program
           options.model,
           options.modelHandler,
         );
+
+        // Early validation: check if task needs a model
+        const earlyParse = await parseFile(resolvedFile, { tolerant: true });
+        const hasMakeStep = (steps: typeof earlyParse.task.steps): boolean =>
+          steps.some(
+            (s) =>
+              s.kind === "make" ||
+              ((s.kind === "if" || s.kind === "for") && hasMakeStep(s.body)),
+          );
+        if (hasMakeStep(earlyParse.task.steps) && !modelHandler) {
+          process.stderr.write(
+            `${c.red("error")} This task has 'make' steps requiring a model. Use --model <provider> or set AEX_MODEL.\n`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+
+        // Early validation: check API key is available
+        if (modelHandler) {
+          const provider = options.model ?? process.env.AEX_MODEL;
+          if (provider) {
+            const check = checkApiKeyAvailable(provider);
+            if (check && !check.available) {
+              process.stderr.write(
+                `${c.red("error")} ${check.envVar} is not set. Required for --model ${provider}.\n`,
+              );
+              process.exitCode = 1;
+              return;
+            }
+          }
+        }
+
         const registry = options.registry
           ? { url: options.registry }
           : undefined;
@@ -548,7 +583,7 @@ program
 
         if (result.status === "blocked") {
           process.stderr.write(
-            `${c.yellow("runtime blocked")}: ${result.issues.join(", ")}\n`,
+            `${c.red("error")} runtime blocked: ${result.issues.join(", ")}\n`,
           );
           process.exitCode = 1;
         } else {
@@ -719,6 +754,12 @@ program
         }
         const raw = Buffer.concat(chunks).toString("utf8").trim();
 
+        if (!raw) {
+          process.stderr.write("aex gate: no input received on stdin\n");
+          process.exitCode = 2;
+          return;
+        }
+
         let input: GateInput;
         try {
           input = JSON.parse(raw) as GateInput;
@@ -760,6 +801,11 @@ program
 
         // Parse policy and extract layer
         const policyParsed = await parseFile(policyPath, { tolerant: true });
+        for (const d of policyParsed.diagnostics) {
+          process.stderr.write(
+            `aex gate: warn: line ${d.line ?? "-"}: ${d.message}\n`,
+          );
+        }
         const policyLayer = extractPolicyLayer(policyParsed.task);
 
         // Optionally merge with contract
@@ -945,7 +991,7 @@ program
           const result = await executeAfterApproval(resolved, options);
 
           if (result.status === "blocked") {
-            process.stderr.write(`${c.yellow("runtime blocked")}\n`);
+            process.stderr.write(`${c.red("error")} runtime blocked\n`);
             process.exitCode = 1;
           } else {
             process.stdout.write(`${c.green("runtime success")}\n`);

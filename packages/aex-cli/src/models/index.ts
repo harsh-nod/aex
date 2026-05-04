@@ -40,3 +40,16 @@ export async function resolveModelHandler(
 
   return undefined;
 }
+
+const PROVIDER_ENV_VARS: Record<string, string> = {
+  openai: "OPENAI_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
+};
+
+export function checkApiKeyAvailable(
+  provider: string,
+): { envVar: string; available: boolean } | null {
+  const envVar = PROVIDER_ENV_VARS[provider];
+  if (!envVar) return null;
+  return { envVar, available: !!process.env[envVar] };
+}

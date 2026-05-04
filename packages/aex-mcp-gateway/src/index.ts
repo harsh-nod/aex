@@ -147,8 +147,22 @@ export class AEXProxy {
     clientOut: Writable,
     upstream: ChildProcess,
   ): Promise<void> {
-    const upstreamIn = upstream.stdin!;
-    const upstreamOut = upstream.stdout!;
+    // Handle spawn failures (e.g., command not found)
+    upstream.on("error", (err) => {
+      this.logger({
+        event: "upstream.error",
+        data: { message: err.message },
+      });
+    });
+
+    if (!upstream.stdin || !upstream.stdout) {
+      throw new Error(
+        "Upstream process stdio not available. Check that the upstream command exists and is executable.",
+      );
+    }
+
+    const upstreamIn = upstream.stdin;
+    const upstreamOut = upstream.stdout;
 
     // Client -> Proxy -> Upstream
     const clientReader = createInterface({ input: clientIn });
@@ -191,6 +205,10 @@ export class AEXProxy {
       try {
         msg = JSON.parse(trimmed) as JsonRpcResponse;
       } catch {
+        this.logger({
+          event: "upstream.non_jsonrpc",
+          data: { line: trimmed.substring(0, 200) },
+        });
         clientOut.write(line + "\n");
         return;
       }
@@ -209,7 +227,13 @@ export class AEXProxy {
 
     // Wait for upstream to exit
     await new Promise<void>((resolve) => {
-      upstream.on("exit", () => {
+      upstream.on("exit", (code, signal) => {
+        if (code !== 0 && code !== null) {
+          this.logger({
+            event: "upstream.crashed",
+            data: { code, signal: signal ?? undefined },
+          });
+        }
         clientReader.close();
         upstreamReader.close();
         resolve();
